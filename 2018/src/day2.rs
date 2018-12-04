@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::iter::{Iterator, Zip};
+use std::iter::Iterator;
 use std::str;
 
 const INPUT: &str = include_str!("input/day2.txt");
