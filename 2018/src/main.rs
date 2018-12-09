@@ -2,6 +2,7 @@ mod day1;
 mod day2;
 mod day3;
 mod day4;
+// mod day5; // TODO: optimize
 
 fn main() {
     println!("Day 1 part 1: {}", day1::part1());
@@ -12,4 +13,6 @@ fn main() {
     println!("Day 3 part 2: {}", day3::part2());
     println!("Day 4 part 1: {}", day4::part1());
     println!("Day 4 part 2: {}", day4::part2());
+    // println!("Day 5 part 1: {}", day5::part1()); // TODO: optimize
+    // println!("Day 5 part 2: {}", day5::part2()); // TODO: optimize
 }
