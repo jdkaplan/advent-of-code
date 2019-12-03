@@ -1,4 +1,4 @@
-Layout/AlignArguments:
+Layout/ArgumentAlignment:
   EnforcedStyle: with_fixed_indentation
 
 Metrics/LineLength:
