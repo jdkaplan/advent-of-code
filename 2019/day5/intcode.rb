@@ -49,8 +49,6 @@ module Intcode
     end
   end
 
-  class DoneExecuting < StandardError; end
-
   class Executor
     def initialize(mem)
       @mem = mem
@@ -59,10 +57,7 @@ module Intcode
 
     def run(&user_input)
       loop do
-        tick(&user_input)
-      rescue DoneExecuting
-        # TODO: Stop using exceptions for control flow
-        return
+        return if tick(&user_input) == :done_executing
       end
     end
 
@@ -85,7 +80,7 @@ module Intcode
       when 8
         equal!
       when 99
-        raise DoneExecuting
+        :done_executing
       else
         raise StandardError, "unexpected opcode: #{opcode}"
       end
