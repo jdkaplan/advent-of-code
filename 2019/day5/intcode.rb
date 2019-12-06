@@ -67,59 +67,23 @@ module Intcode
     end
 
     def tick(&user_input)
-      opcode = operation(@mem[@ip])
-      mode = modes(@mem[@ip])
-      case opcode
+      case operation(@mem[@ip])
       when 1
-        a = read(@ip + 1, mode[0])
-        b = read(@ip + 2, mode[1])
-        r = @mem[@ip + 3]
-        raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
-
-        @mem[r] = a + b
-        @ip += 4
+        add!
       when 2
-        a = read(@ip + 1, mode[0])
-        b = read(@ip + 2, mode[1])
-        r = @mem[@ip + 3]
-        raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
-
-        @mem[r] = a * b
-        @ip += 4
+        mul!
       when 3
-        r = @mem[@ip + 1]
-        raise StandardError, "unexpected mode: #{mode[0]}" if mode[0] != 0
-
-        @mem[r] = input(&user_input)
-        @ip += 2
+        input!(&user_input)
       when 4
-        output = read(@ip + 1, mode[0])
-        puts "output: #{output}"
-        @ip += 2
+        output!
       when 5
-        a = read(@ip + 1, mode[0])
-        b = read(@ip + 2, mode[1])
-        @ip = a.zero? ? @ip + 3 : b
+        branch_if_not_zero!
       when 6
-        a = read(@ip + 1, mode[0])
-        b = read(@ip + 2, mode[1])
-        @ip = a.zero? ? b : @ip + 3
+        branch_if_zero!
       when 7
-        a = read(@ip + 1, mode[0])
-        b = read(@ip + 2, mode[1])
-        r = @mem[@ip + 3]
-        raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
-
-        @mem[r] = a < b ? 1 : 0
-        @ip += 4
+        less_than!
       when 8
-        a = read(@ip + 1, mode[0])
-        b = read(@ip + 2, mode[1])
-        r = @mem[@ip + 3]
-        raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
-
-        @mem[r] = a == b ? 1 : 0
-        @ip += 4
+        equal!
       when 99
         raise DoneExecuting
       else
@@ -128,6 +92,80 @@ module Intcode
     end
 
     private
+
+    def add!
+      mode = modes(@mem[@ip])
+      a = read(@ip + 1, mode[0])
+      b = read(@ip + 2, mode[1])
+      r = @mem[@ip + 3]
+      raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
+
+      @mem[r] = a + b
+      @ip += 4
+    end
+
+    def mul!
+      mode = modes(@mem[@ip])
+      a = read(@ip + 1, mode[0])
+      b = read(@ip + 2, mode[1])
+      r = @mem[@ip + 3]
+      raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
+
+      @mem[r] = a * b
+      @ip += 4
+    end
+
+    def input!(&user_input)
+      mode = modes(@mem[@ip])
+      r = @mem[@ip + 1]
+      raise StandardError, "unexpected mode: #{mode[0]}" if mode[0] != 0
+
+      @mem[r] = input(&user_input)
+      @ip += 2
+    end
+
+    def output!
+      mode = modes(@mem[@ip])
+      output = read(@ip + 1, mode[0])
+      puts "output: #{output}"
+      @ip += 2
+    end
+
+    def branch_if_not_zero!
+      mode = modes(@mem[@ip])
+      a = read(@ip + 1, mode[0])
+      b = read(@ip + 2, mode[1])
+      @ip = a.zero? ? @ip + 3 : b
+    end
+
+    def branch_if_zero!
+      mode = modes(@mem[@ip])
+      a = read(@ip + 1, mode[0])
+      b = read(@ip + 2, mode[1])
+      @ip = a.zero? ? b : @ip + 3
+    end
+
+    def less_than!
+      mode = modes(@mem[@ip])
+      a = read(@ip + 1, mode[0])
+      b = read(@ip + 2, mode[1])
+      r = @mem[@ip + 3]
+      raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
+
+      @mem[r] = a < b ? 1 : 0
+      @ip += 4
+    end
+
+    def equal!
+      mode = modes(@mem[@ip])
+      a = read(@ip + 1, mode[0])
+      b = read(@ip + 2, mode[1])
+      r = @mem[@ip + 3]
+      raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
+
+      @mem[r] = a == b ? 1 : 0
+      @ip += 4
+    end
 
     def input
       print 'input> '
