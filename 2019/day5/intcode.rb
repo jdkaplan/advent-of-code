@@ -71,74 +71,54 @@ module Intcode
       mode = modes(@mem[@ip])
       case opcode
       when 1
-        r1, r2, r3 = @mem[@ip + 1, 3]
-        a = param(r1, mode[0])
-        b = param(r2, mode[1])
+        a = read(@ip + 1, mode[0])
+        b = read(@ip + 2, mode[1])
+        r = @mem[@ip + 3]
         raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
 
-        @mem[r3] = a + b
+        @mem[r] = a + b
         @ip += 4
       when 2
-        r1 = @mem[@ip + 1]
-        r2 = @mem[@ip + 2]
-        r3 = @mem[@ip + 3]
-        a = param(r1, mode[0])
-        b = param(r2, mode[1])
+        a = read(@ip + 1, mode[0])
+        b = read(@ip + 2, mode[1])
+        r = @mem[@ip + 3]
         raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
 
-        @mem[r3] = a * b
+        @mem[r] = a * b
         @ip += 4
       when 3
-        r1 = @mem[@ip + 1]
+        r = @mem[@ip + 1]
         raise StandardError, "unexpected mode: #{mode[0]}" if mode[0] != 0
 
-        @mem[r1] = user_input.nil? ? input : user_input.call
+        @mem[r] = user_input.nil? ? input : user_input.call
         @ip += 2
       when 4
-        r1 = @mem[@ip + 1]
-        output = param(r1, mode[0])
+        output = read(@ip + 1, mode[0])
         puts "output: #{output}"
-
         @ip += 2
       when 5
-        r1 = @mem[@ip + 1]
-        r2 = @mem[@ip + 2]
-        a = param(r1, mode[0])
-        b = param(r2, mode[1])
-        if !a.zero?
-          @ip = b
-        else
-          @ip += 3
-        end
+        a = read(@ip + 1, mode[0])
+        b = read(@ip + 2, mode[1])
+        @ip = a.zero? ? @ip + 3 : b
       when 6
-        r1 = @mem[@ip + 1]
-        r2 = @mem[@ip + 2]
-        a = param(r1, mode[0])
-        b = param(r2, mode[1])
-        if a.zero?
-          @ip = b
-        else
-          @ip += 3
-        end
+        a = read(@ip + 1, mode[0])
+        b = read(@ip + 2, mode[1])
+        @ip = a.zero? ? b : @ip + 3
       when 7
-        r1 = @mem[@ip + 1]
-        r2 = @mem[@ip + 2]
-        r3 = @mem[@ip + 3]
-        a = param(r1, mode[0])
-        b = param(r2, mode[1])
+        a = read(@ip + 1, mode[0])
+        b = read(@ip + 2, mode[1])
+        r = @mem[@ip + 3]
         raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
 
-        @mem[r3] = a < b ? 1 : 0
+        @mem[r] = a < b ? 1 : 0
         @ip += 4
       when 8
-        r1 = @mem[@ip + 1]
-        r2 = @mem[@ip + 2]
-        r3 = @mem[@ip + 3]
-        a = param(r1, mode[0])
-        b = param(r2, mode[1])
+        a = read(@ip + 1, mode[0])
+        b = read(@ip + 2, mode[1])
+        r = @mem[@ip + 3]
         raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
 
-        @mem[r3] = a == b ? 1 : 0
+        @mem[r] = a == b ? 1 : 0
         @ip += 4
       when 99
         raise DoneExecuting
@@ -183,6 +163,10 @@ module Intcode
       else
         raise StandardError, "unexpected mode: #{mode}"
       end
+    end
+
+    def read(addr, mode)
+      param(@mem[addr], mode)
     end
 
     # Operators
