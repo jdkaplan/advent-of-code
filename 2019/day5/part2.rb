@@ -4,4 +4,5 @@ require_relative 'intcode'
 
 input = File.join(__dir__, 'input')
 program = Intcode.read(input)
-program.run
+puts 236453
+program.run { 5 }
