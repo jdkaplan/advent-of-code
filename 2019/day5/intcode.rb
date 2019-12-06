@@ -173,8 +173,6 @@ module Intcode
       gets.to_i
     end
 
-    def default_input; end
-
     def operation(cell)
       (cell % 100)
     end
@@ -201,9 +199,5 @@ module Intcode
     def read(addr, mode)
       param(@mem[addr], mode)
     end
-
-    # Operators
-
-    def add; end
   end
 end
