@@ -33,11 +33,7 @@ module Intcode
       @initial_state = mem
     end
 
-    def on_input(&block)
-      @input = block
-    end
-
-    def run
+    def run(&user_input)
       @mem = Memory.new(@initial_state.clone)
       ip = 0
       loop do
@@ -68,7 +64,7 @@ module Intcode
           r1 = mem[ip + 1]
           raise StandardError, "unexpected mode: #{mode[0]}" if mode[0] != 0
 
-          mem[r1] = input
+          mem[r1] = user_input.nil? ? input : user_input.call
           ip += 2
         when 4
           r1 = mem[ip + 1]
