@@ -6,10 +6,12 @@ module Intcode
   end
 
   def self.parse(input)
-    cleaned = input
-              .gsub(/^#.*$/, '')
-              .gsub('\s', '')
-    Program.new cleaned.split(',').map(&:to_i)
+    parsed = input
+             .gsub(/^#.*$/, '')
+             .gsub('\s', '')
+             .split(',')
+             .map(&:to_i)
+    Program.new parsed
   end
 
   class Memory < Array
