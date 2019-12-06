@@ -90,7 +90,7 @@ module Intcode
         r = @mem[@ip + 1]
         raise StandardError, "unexpected mode: #{mode[0]}" if mode[0] != 0
 
-        @mem[r] = user_input.nil? ? input : user_input.call
+        @mem[r] = input(&user_input)
         @ip += 2
       when 4
         output = read(@ip + 1, mode[0])
@@ -131,16 +131,16 @@ module Intcode
 
     def input
       print 'input> '
-      return default_input if @input.nil?
+      if block_given?
+        inp = yield
+        puts inp
+        return inp
+      end
 
-      inp = @input.call
-      puts inp
-      inp
-    end
-
-    def default_input
       gets.to_i
     end
+
+    def default_input; end
 
     def operation(cell)
       (cell % 100)
