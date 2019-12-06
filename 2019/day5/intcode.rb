@@ -2,33 +2,41 @@
 
 module Intcode
   def self.read(filename)
-    input = File.read(filename)
-                .gsub(/^#.*$/, '')
-                .gsub('\s', '')
-    Program.new(parse(input))
+    parse File.read(filename)
   end
 
   def self.parse(input)
-    input.split(',').map(&:to_i)
+    cleaned = input
+              .gsub(/^#.*$/, '')
+              .gsub('\s', '')
+    Program.new cleaned.split(',').map(&:to_i)
+  end
+
+  class Memory < Array
+    def to_s
+      batch_size = 10
+      output = String.new
+      each_slice(batch_size).each_with_index do |batch, idx|
+        prefix = idx * batch_size
+        output << "#{prefix}: #{batch.join(' ')}\n"
+      end
+      output
+    end
   end
 
   class Program
     attr_accessor :mem
     def initialize(mem)
-      @mem = mem.clone
+      @input = nil
+      @initial_state = mem
+    end
 
-      def @mem.to_s
-        batch_size = 10
-        output = String.new
-        each_slice(batch_size).each_with_index do |batch, idx|
-          prefix = idx * batch_size
-          output << "#{prefix}: #{batch.join(' ')}\n"
-        end
-        output
-      end
+    def on_input(&block)
+      @input = block
     end
 
     def run
+      @mem = Memory.new(@initial_state.clone)
       pc = 0
       loop do
         opcode = operation(mem[pc])
@@ -66,6 +74,46 @@ module Intcode
           puts "output: #{output}"
 
           pc += 2
+        when 5
+          r1 = mem[pc + 1]
+          r2 = mem[pc + 2]
+          a = param(r1, mode[0])
+          b = param(r2, mode[1])
+          if !a.zero?
+            pc = b
+          else
+            pc += 3
+          end
+        when 6
+          r1 = mem[pc + 1]
+          r2 = mem[pc + 2]
+          a = param(r1, mode[0])
+          b = param(r2, mode[1])
+          if a.zero?
+            pc = b
+          else
+            pc += 3
+          end
+        when 7
+          r1 = mem[pc + 1]
+          r2 = mem[pc + 2]
+          r3 = mem[pc + 3]
+          a = param(r1, mode[0])
+          b = param(r2, mode[1])
+          raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
+
+          mem[r3] = a < b ? 1 : 0
+          pc += 4
+        when 8
+          r1 = mem[pc + 1]
+          r2 = mem[pc + 2]
+          r3 = mem[pc + 3]
+          a = param(r1, mode[0])
+          b = param(r2, mode[1])
+          raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
+
+          mem[r3] = a == b ? 1 : 0
+          pc += 4
         when 99
           return mem[0]
         else
@@ -78,6 +126,14 @@ module Intcode
 
     def input
       print 'input> '
+      return default_input if @input.nil?
+
+      inp = @input.call
+      puts inp
+      inp
+    end
+
+    def default_input
       gets.to_i
     end
 
