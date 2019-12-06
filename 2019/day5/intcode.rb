@@ -39,83 +39,83 @@ module Intcode
 
     def run
       @mem = Memory.new(@initial_state.clone)
-      pc = 0
+      ip = 0
       loop do
-        opcode = operation(mem[pc])
-        mode = modes(mem[pc])
+        opcode = operation(mem[ip])
+        mode = modes(mem[ip])
         case opcode
         when 1
-          r1 = mem[pc + 1]
-          r2 = mem[pc + 2]
-          r3 = mem[pc + 3]
+          r1 = mem[ip + 1]
+          r2 = mem[ip + 2]
+          r3 = mem[ip + 3]
           a = param(r1, mode[0])
           b = param(r2, mode[1])
           raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
 
           mem[r3] = a + b
-          pc += 4
+          ip += 4
         when 2
-          r1 = mem[pc + 1]
-          r2 = mem[pc + 2]
-          r3 = mem[pc + 3]
+          r1 = mem[ip + 1]
+          r2 = mem[ip + 2]
+          r3 = mem[ip + 3]
           a = param(r1, mode[0])
           b = param(r2, mode[1])
           raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
 
           mem[r3] = a * b
-          pc += 4
+          ip += 4
         when 3
-          r1 = mem[pc + 1]
+          r1 = mem[ip + 1]
           raise StandardError, "unexpected mode: #{mode[0]}" if mode[0] != 0
 
           mem[r1] = input
-          pc += 2
+          ip += 2
         when 4
-          r1 = mem[pc + 1]
+          r1 = mem[ip + 1]
           output = param(r1, mode[0])
           puts "output: #{output}"
 
-          pc += 2
+          ip += 2
         when 5
-          r1 = mem[pc + 1]
-          r2 = mem[pc + 2]
+          r1 = mem[ip + 1]
+          r2 = mem[ip + 2]
           a = param(r1, mode[0])
           b = param(r2, mode[1])
           if !a.zero?
-            pc = b
+            ip = b
           else
-            pc += 3
+            ip += 3
           end
         when 6
-          r1 = mem[pc + 1]
-          r2 = mem[pc + 2]
+          r1 = mem[ip + 1]
+          r2 = mem[ip + 2]
           a = param(r1, mode[0])
           b = param(r2, mode[1])
           if a.zero?
-            pc = b
+            ip = b
           else
-            pc += 3
+            ip += 3
           end
         when 7
-          r1 = mem[pc + 1]
-          r2 = mem[pc + 2]
-          r3 = mem[pc + 3]
+          r1 = mem[ip + 1]
+          r2 = mem[ip + 2]
+          r3 = mem[ip + 3]
           a = param(r1, mode[0])
           b = param(r2, mode[1])
           raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
 
           mem[r3] = a < b ? 1 : 0
-          pc += 4
+          ip += 4
         when 8
-          r1 = mem[pc + 1]
-          r2 = mem[pc + 2]
-          r3 = mem[pc + 3]
+          r1 = mem[ip + 1]
+          r2 = mem[ip + 2]
+          r3 = mem[ip + 3]
           a = param(r1, mode[0])
           b = param(r2, mode[1])
           raise StandardError, "unexpected mode: #{mode[2]}" if mode[2] != 0
 
           mem[r3] = a == b ? 1 : 0
-          pc += 4
+          ip += 4
         when 99
           return mem[0]
         else
