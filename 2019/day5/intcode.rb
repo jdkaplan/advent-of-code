@@ -14,15 +14,27 @@ module Intcode
     Program.new parsed
   end
 
-  class Memory < Array
+  class Memory
+    def initialize(cells)
+      @cells = cells
+    end
+
     def to_s
       batch_size = 10
       output = String.new
-      each_slice(batch_size).each_with_index do |batch, idx|
+      @cells.each_slice(batch_size).each_with_index do |batch, idx|
         prefix = idx * batch_size
         output << "#{prefix}: #{batch.join(' ')}\n"
       end
       output
+    end
+
+    def [](addr)
+      @cells[addr]
+    end
+
+    def []=(addr, val)
+      @cells[addr] = val
     end
   end
 
