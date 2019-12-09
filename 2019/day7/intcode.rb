@@ -84,20 +84,27 @@ module Intcode
       case operation(@mem[@ip])
       when 1
         add!
+        nil
       when 2
         mul!
+        nil
       when 3
         input!(&@input_block)
+        nil
       when 4
         output!(&@output_block)
       when 5
         branch_if_not_zero!
+        nil
       when 6
         branch_if_zero!
+        nil
       when 7
         less_than!
+        nil
       when 8
         equal!
+        nil
       when 99
         :done_executing
       else
@@ -143,6 +150,7 @@ module Intcode
       output = read(@ip + 1, mode[0])
       user_output.call output if block_given?
       @ip += 2
+      output
     end
 
     def branch_if_not_zero!
@@ -184,7 +192,7 @@ module Intcode
     def input
       if block_given?
         inp = yield
-        raise "Invalid input: #{inp}" unless inp.is_a?(Numeric)
+        raise "Invalid input: #{inp.inspect}" unless inp.is_a?(Numeric)
 
         return inp
       end
