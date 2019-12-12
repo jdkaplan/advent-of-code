@@ -137,6 +137,7 @@ module Intcode
         nil
       when 9
         move_relative_base!
+        nil
       when 99
         :done_executing
       else
