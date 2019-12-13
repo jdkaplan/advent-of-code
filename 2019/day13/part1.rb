@@ -90,7 +90,7 @@ class Game
       blocks = @screen.tiles.values.count { |val| val == :block }
       puts blocks
     rescue DoneExecuting
-      nil
+      return nil
     end
   end
 
