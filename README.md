@@ -5,9 +5,9 @@ I like solving the [Advent of Code](https://adventofcode.com/) challenges every 
 - 2017: Python but like a Go programmer
 - 2018: Rust
 - 2019: Ruby
-- 2020: TODO
+- 2020: Elixir
 
 Languages I'd like to use for the TODO years:
-- Elixir
 - WebAssembly
 - Haskell
+- J (or other APL-like)
