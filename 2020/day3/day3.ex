@@ -39,7 +39,7 @@ defmodule TreeMap do
   end
 end
 
-defmodule Day2 do
+defmodule Day3 do
   defp read_input do
     Path.expand('input', Path.dirname(__ENV__.file))
     |> File.read!()
@@ -54,10 +54,10 @@ defmodule Day2 do
     end
   end
 
-  def part1 do
-    {:ok, tree_map} = TreeMap.start_link(read_input)
+  defp trees(tree_map, slope) do
+    {dr, dc} = slope
 
-    Stream.iterate({0, 0}, fn {r, c} -> {r + 1, c + 3} end)
+    Stream.iterate({0, 0}, fn {r, c} -> {r + dr, c + dc} end)
     |> Enum.reduce_while(0, fn cell, tree_count ->
       case content(tree_map, cell) do
         :error -> {:halt, tree_count}
@@ -66,6 +66,27 @@ defmodule Day2 do
       end
     end)
   end
+
+  def part1 do
+    {:ok, tree_map} = TreeMap.start_link(read_input())
+    trees(tree_map, {1, 3})
+  end
+
+  def part2 do
+    {:ok, tree_map} = TreeMap.start_link(read_input())
+
+    slopes = [
+      {1, 1},
+      {1, 3},
+      {1, 5},
+      {1, 7},
+      {2, 1}
+    ]
+
+    Enum.map(slopes, fn slope -> trees(tree_map, slope) end)
+    |> Enum.reduce(1, fn x, prod -> x * prod end)
+  end
 end
 
-Day2.part1() |> IO.inspect()
+Day3.part1() |> IO.inspect()
+Day3.part2() |> IO.inspect()
