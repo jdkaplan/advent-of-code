@@ -41,6 +41,27 @@ defmodule Day5 do
     |> Enum.map(&seat_id/1)
     |> Enum.max()
   end
+
+  defp find_hole(seat_ids) do
+    [{lo, hi}] =
+      Enum.zip(
+        Enum.slice(seat_ids, 0..-2),
+        Enum.slice(seat_ids, 1..-1)
+      )
+      |> Enum.filter(fn {a, b} -> b - a != 1 end)
+
+    lo + 1
+  end
+
+  def part2 do
+    read_input()
+    |> String.split()
+    |> Enum.map(&parse_seat/1)
+    |> Enum.map(&seat_id/1)
+    |> Enum.sort()
+    |> find_hole
+  end
 end
 
 Day5.part1() |> IO.inspect()
+Day5.part2() |> IO.inspect()
