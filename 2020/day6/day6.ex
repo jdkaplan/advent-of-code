@@ -16,6 +16,22 @@ defmodule Day6 do
     |> Enum.map(&MapSet.size/1)
     |> Enum.sum()
   end
+
+  def part2 do
+    alphabet = String.codepoints("abcdefghijklmnopqrstuvwxyz")
+
+    read_input()
+    |> String.split("\n\n")
+    |> Enum.map(fn block ->
+      String.split(block)
+      |> Enum.reduce(MapSet.new(alphabet), fn line, set ->
+        MapSet.intersection(set, MapSet.new(String.codepoints(line)))
+      end)
+    end)
+    |> Enum.map(&MapSet.size/1)
+    |> Enum.sum()
+  end
 end
 
 Day6.part1() |> IO.inspect()
+Day6.part2() |> IO.inspect()
