@@ -61,6 +61,45 @@ defmodule Day7 do
     # No recursion :sweat_smile:
     MapSet.size(MapSet.delete(containing_colors, "shiny gold"))
   end
+
+  def part2 do
+    rules = parse_rules(read_input())
+    counts = solve_fixpoint(rules, %{})
+    # Exclude outermost
+    counts["shiny gold"] - 1
+  end
+
+  defp solve_fixpoint(todo, counts) do
+    if Enum.empty?(todo) do
+      counts
+    else
+      {color, _contents} =
+        Enum.find(todo, nil, fn {color, _contents} -> solvable?(todo, counts, color) end)
+
+      {new_todo, new_counts} = solve(todo, counts, color)
+      solve_fixpoint(new_todo, new_counts)
+    end
+  end
+
+  defp solved?(counts, color) do
+    Map.has_key?(counts, color)
+  end
+
+  defp solvable?(todo, counts, color) do
+    solved?(counts, color) or
+      Enum.all?(todo[color], fn %{color: inner} -> solved?(counts, inner) end)
+  end
+
+  defp inner_count(todo, counts, color) do
+    Enum.reduce(todo[color], 0, fn %{count: count, color: inner}, sum ->
+      sum + count * counts[inner]
+    end)
+  end
+
+  defp solve(todo, counts, color) do
+    {Map.delete(todo, color), Map.put(counts, color, 1 + inner_count(todo, counts, color))}
+  end
 end
 
 Day7.part1() |> IO.inspect()
+Day7.part2() |> IO.inspect()
