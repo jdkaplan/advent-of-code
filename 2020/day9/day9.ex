@@ -7,7 +7,7 @@ defmodule SetTools do
     []
   end
 
-  def combinations(list = [head | tail], size) do
+  def combinations([head | tail], size) do
     taken = Stream.map(combinations(tail, size - 1), fn subset -> [head | subset] end)
     left = combinations(tail, size)
     Stream.concat(taken, left)
@@ -45,6 +45,26 @@ defmodule Day9 do
     end)
     |> Enum.at(preamble_size)
   end
+
+  defp slices(list) do
+    2..(length(list) - 1)
+    |> Stream.flat_map(fn size ->
+      Stream.chunk_every(list, size, 1, :discard)
+    end)
+  end
+
+  def part2 do
+    target = part1()
+
+    ints =
+      read_input()
+      |> parse_lines()
+      |> slices()
+      |> Enum.find(fn slice -> Enum.sum(slice) == target end)
+
+    Enum.min(ints) + Enum.max(ints)
+  end
 end
 
 Day9.part1() |> IO.inspect()
+Day9.part2() |> IO.inspect()
