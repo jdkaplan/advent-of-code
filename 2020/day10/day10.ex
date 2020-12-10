@@ -1,3 +1,56 @@
+defmodule Cache do
+  use GenServer
+
+  def start_link(cache) do
+    GenServer.start_link(__MODULE__, cache)
+  end
+
+  def put(pid, key, val) do
+    GenServer.call(pid, {:put, key, val})
+  end
+
+  def get(pid, key) do
+    GenServer.call(pid, {:get, key})
+  end
+
+  @impl true
+  def init(cache) do
+    {:ok, cache}
+  end
+
+  @impl true
+  def handle_call({:get, key}, _from, cache) do
+    {:reply, Map.get(cache, key), cache}
+  end
+
+  @impl true
+  def handle_call({:put, key, val}, _from, cache) do
+    {:reply, val, Map.put(cache, key, val)}
+  end
+end
+
+defmodule Search do
+  defp count_paths_iter(start, neighbors, cache) do
+    cached = Cache.get(cache, start)
+
+    if cached do
+      cached
+    else
+      count =
+        neighbors.(start)
+        |> Enum.map(&count_paths_iter(&1, neighbors, cache))
+        |> Enum.sum()
+
+      Cache.put(cache, start, count)
+    end
+  end
+
+  def count_paths(start, neighbors, goal) do
+    {:ok, cache_pid} = Cache.start_link(%{goal => 1})
+    count_paths_iter(start, neighbors, cache_pid)
+  end
+end
+
 defmodule Day10 do
   defp read_input do
     Path.expand('input', Path.dirname(__ENV__.file))
@@ -43,6 +96,15 @@ defmodule Day10 do
 
     counts[3] * counts[1]
   end
+
+  def part2 do
+    adapters = read_input() |> parse_adapters()
+    device = Enum.max(adapters)
+
+    neighbors = fn a1 -> Enum.filter(adapters, &can_stack?(a1, &1)) end
+    Search.count_paths(0, neighbors, device)
+  end
 end
 
 Day10.part1() |> IO.inspect()
+Day10.part2() |> IO.inspect()
