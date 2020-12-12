@@ -71,13 +71,68 @@ defmodule Day12 do
     |> manhattan({0, 0})
   end
 
-  def debug do
-    for h <- [:N, :S, :E, :W],
-        d <- [0, 90, 180, 270, 360, -90, -180, -270] do
-      turn(h, d)
+  def part2 do
+    read_input()
+    |> parse_instructions()
+    |> point({0, 0}, {10, 1})
+    |> manhattan({0, 0})
+  end
+
+  defp point([], ferry, _waypoint) do
+    ferry
+  end
+
+  defp point([instruction | rest], ferry, waypoint) do
+    {new_ferry, new_waypoint} =
+      case instruction do
+        {:N, dy} -> {ferry, v_add(waypoint, {0, +dy})}
+        {:S, dy} -> {ferry, v_add(waypoint, {0, -dy})}
+        {:E, dx} -> {ferry, v_add(waypoint, {+dx, 0})}
+        {:W, dx} -> {ferry, v_add(waypoint, {-dx, 0})}
+        {:L, deg} -> {ferry, rotate(waypoint, deg)}
+        {:R, deg} -> {ferry, rotate(waypoint, -deg)}
+        {:F, dist} -> {move2(waypoint, ferry, dist), waypoint}
+      end
+
+    point(rest, new_ferry, new_waypoint)
+  end
+
+  defp move2({vx, vy}, {rx, ry}, d) do
+    {rx + d * vx, ry + d * vy}
+  end
+
+  defp v_add({tx, ty}, {rx, ry}) do
+    {tx + rx, ty + ry}
+  end
+
+  def c_mul({r1, i1}, {r2, i2}) do
+    r = r1 * r2 - i1 * i2
+    i = r1 * i2 + i1 * r2
+    {r, i}
+  end
+
+  def c_pow(_z, 0), do: {1, 0}
+
+  def c_pow(z, n) do
+    Enum.reduce(Enum.into(1..n, [], fn _ -> z end), &c_mul/2)
+  end
+
+  defp rotate(vector, deg) do
+    ticks = div(deg, 90)
+
+    if ticks < 0 do
+      c_mul(vector, c_pow({0, -1}, -ticks))
+    else
+      c_mul(vector, c_pow({0, 1}, ticks))
     end
+  end
+
+  def debug do
+    IO.inspect({-56, 28})
+    rotate({56, -28}, 180)
+    rotate({56, -28}, -180)
   end
 end
 
 Day12.part1() |> IO.inspect()
-# Day12.debug() |> IO.inspect()
+Day12.part2() |> IO.inspect()
