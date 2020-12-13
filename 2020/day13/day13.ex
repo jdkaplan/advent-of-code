@@ -1,68 +1,3 @@
-defmodule Numbers do
-  use GenServer
-
-  def start_link do
-    primes = [2, 3]
-    max_n = 2
-    GenServer.start_link(__MODULE__, {primes, max_n})
-  end
-
-  def is_prime?(pid, n) do
-    GenServer.call(pid, {:is_prime?, n})
-  end
-
-  def primes_up_to(pid, n) do
-    GenServer.call(pid, {:up_to, n})
-  end
-
-  @impl true
-  def init(primes) do
-    {:ok, primes}
-  end
-
-  @impl true
-  def handle_call({:is_prime?, n}, _from, {primes, max_n}) do
-    IO.inspect({:is_prime?, n, {primes, max_n}})
-    {ans, {primes, max_n}} = check_prime(n, {primes, max_n})
-    {:reply, ans, {primes, max_n}}
-  end
-
-  @impl true
-  def handle_call({:up_to, n}, _from, {primes, max_n}) do
-    {ans, {primes, max_n}} = gen_primes(n, {primes, max_n})
-    {:reply, ans, {primes, max_n}}
-  end
-
-  defp check_prime(n, {primes, max_n}) do
-    if n / 2 <= max_n do
-      {Enum.member?(primes, n), {primes, max_n}}
-    else
-      possible_factors = primes ++ Enum.to_list((max_n + 1)..div(n, 2))
-      has_factor = Enum.any?(possible_factors, &(rem(n, &1) == 0))
-      {!has_factor, {primes, max_n}}
-    end
-  end
-
-  defp gen_primes(n, {primes, max_n}) do
-    if n <= max_n do
-      {Enum.filter(primes, &(&1 <= n)), {primes, max_n}}
-    else
-      new_primes =
-        Enum.reduce((max_n + 1)..n, primes, fn p, primes ->
-          {is_prime, {primes, _}} = check_prime(p, {primes, p - 1})
-
-          if is_prime do
-            primes ++ [p]
-          else
-            primes
-          end
-        end)
-
-      {new_primes, {new_primes, n}}
-    end
-  end
-end
-
 defmodule Day13 do
   defp read_input do
     Path.expand('input', Path.dirname(__ENV__.file))
@@ -71,8 +6,8 @@ defmodule Day13 do
 
   defp test_input do
     """
-    939
-    7,13,x,x,59,x,31,19
+    _
+    1789,37,47,1889
     """
   end
 
@@ -96,21 +31,6 @@ defmodule Day13 do
     {timestamp, bus_ids}
   end
 
-  # defp lcm(a, b, numbers) do
-  #   bag_union(factors(a, numbers), factors(b, numbers))
-  # end
-
-  # defp factors(n, numbers) do
-  #   Numbers.primes_up_to(numbers, div(n, 2))
-  #   |> Enum.reduce(2..n, {n, %{}}, fn )
-  # end
-
-  # defp bag_union(b1, b2) do
-  #   Enum.reduce(b1, b2, fn {k, v}, bag ->
-  #     Map.put(bag, k, max(v, Map.get(bag, k, 0)))
-  #   end)
-  # end
-
   defp first_multiple_after(timestamp, bus_id) do
     if rem(timestamp, bus_id) == 0 do
       timestamp
@@ -128,6 +48,89 @@ defmodule Day13 do
 
     bus_id * (time - timestamp)
   end
+
+  defp parse_requirements(text) do
+    [_, line_2] = String.split(text, "\n", trim: true)
+
+    String.split(line_2, ",")
+    |> Enum.map(&parse_int(&1, nil))
+    |> Enum.with_index()
+    |> Enum.filter(fn {offset, _} -> offset end)
+  end
+
+  def part2 do
+    {_period, timestamp} =
+      read_input()
+      |> parse_requirements()
+      |> Enum.map(fn {period, offset} -> {period, -offset} end)
+      |> Enum.reduce(fn {n1, a1}, {n2, a2} ->
+        unless coprime?(n1, n2) do
+          raise :wat
+        end
+
+        x = chinese_remainder_theorem(a1, n1, a2, n2)
+        n = n1 * n2
+        {n, normalize_residue(rem(x, n), n)}
+      end)
+
+    timestamp
+  end
+
+  defp divmod(dividend, divisor) do
+    {div(dividend, divisor), rem(dividend, divisor)}
+  end
+
+  def gcd(a, b) do
+    {d, _, _, _, _} = extended_euclidean_division(a, b)
+    d
+  end
+
+  # Returns {r, m1, d1, m2, d2} where the following properties hold:
+  # 1. r == gcd(r1, r2)
+  # 2. d1 == abs(r1 / r)
+  # 3. d2 == abs(r2 / r)
+  # 4. r1 * m1 + r2 * m2 == r
+  def extended_euclidean_division(r1, r2) do
+    extended_euclidean_division(r1, r2, 1, 0, 0, 1)
+  end
+
+  def extended_euclidean_division(r1, r2, s1, s2, t1, t2) do
+    if r2 == 0 do
+      {r1, s1, abs(t2), t1, abs(s2)}
+    else
+      {q, r} = divmod(r1, r2)
+      s = s1 - q * s2
+      t = t1 - q * t2
+      extended_euclidean_division(r2, r, s2, s, t2, t)
+    end
+  end
+
+  # m1 * n2 + m2 * n2 = 1
+  def bezout_coefficients(n1, n2) do
+    {_, m1, _, m2, _} = extended_euclidean_division(n1, n2)
+    {m1, m2}
+  end
+
+  # Gives the solution to the following equations:
+  # 1. x = a1 (mod n1)
+  # 2. x = a2 (mod n2)
+  def chinese_remainder_theorem(a1, n1, a2, n2) do
+    {m1, m2} = bezout_coefficients(n1, n2)
+    a1 * m2 * n2 + a2 * m1 * n1
+  end
+
+  def normalize_residue(r, mod) do
+    cond do
+      r < 0 -> normalize_residue(r + mod, mod)
+      r > mod -> normalize_residue(r - mod, mod)
+      true -> r
+    end
+  end
+
+  def coprime?(a, b) do
+    gcd(a, b) == 1
+  end
 end
 
 Day13.part1() |> IO.inspect()
+Day13.part2() |> IO.inspect()
