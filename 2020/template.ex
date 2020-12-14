@@ -4,6 +4,11 @@ defmodule DayX do
     |> File.read!()
   end
 
+  defp test_input do
+    """
+    """
+  end
+
   def part1 do
     read_input()
   end
