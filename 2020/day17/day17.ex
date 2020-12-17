@@ -137,9 +137,6 @@ defmodule Day17 do
   end
 
   defp run(space, cycles) do
-    IO.puts("cycles = #{cycles}")
-    show(space)
-
     tick(space)
     |> run(cycles - 1)
   end
@@ -152,6 +149,84 @@ defmodule Day17 do
     |> Enum.count(fn {_cell, state} -> state == :active end)
   end
 
+  def part2 do
+    read_input()
+    |> parse_space_4d()
+    |> run_4d(6)
+    |> Enum.count(fn {_cell, state} -> state == :active end)
+  end
+
+  defp parse_space_4d(text) do
+    String.split(text, "\n", trim: true)
+    |> Enum.with_index()
+    |> Enum.reduce(%{}, fn {line, y}, map ->
+      String.codepoints(line)
+      |> Enum.with_index()
+      |> Enum.reduce(map, fn {char, x}, map ->
+        Map.put(map, {x, y, 0, 0}, char_to_content(char))
+      end)
+    end)
+  end
+
+  defp run_4d(space, 0) do
+    space
+  end
+
+  defp run_4d(space, cycles) do
+    tick_4d(space)
+    |> run_4d(cycles - 1)
+  end
+
+  defp tick_4d(space) do
+    populate_4d(space)
+    |> Enum.reduce(%{}, fn {cell, count}, new_space ->
+      new_state =
+        case Map.get(space, cell, :inactive) do
+          :active ->
+            if count == 2 or count == 3 do
+              :active
+            else
+              :inactive
+            end
+
+          :inactive ->
+            if count == 3 do
+              :active
+            else
+              :inactive
+            end
+        end
+
+      case new_state do
+        :active -> Map.put(new_space, cell, :active)
+        :inactive -> new_space
+      end
+    end)
+  end
+
+  defp populate_4d(space) do
+    Enum.reduce(space, %{}, fn {cell, state}, counts ->
+      if state == :inactive do
+        counts
+      else
+        neighbors_4d(cell)
+        |> Enum.reduce(counts, fn neighbor, counts ->
+          Map.put(counts, neighbor, 1 + Map.get(counts, neighbor, 0))
+        end)
+      end
+    end)
+  end
+
+  defp neighbors_4d(cell = {x, y, z, w}) do
+    for dx <- -1..1,
+        dy <- -1..1,
+        dz <- -1..1,
+        dw <- -1..1 do
+      {x + dx, y + dy, z + dz, w + dw}
+    end
+    |> Enum.reject(&(&1 == cell))
+  end
+
   def debug do
     test_input()
     |> parse_space()
@@ -162,4 +237,5 @@ defmodule Day17 do
 end
 
 Day17.part1() |> IO.inspect()
+Day17.part2() |> IO.inspect()
 # Day17.debug() |> IO.inspect()
