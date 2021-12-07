@@ -84,3 +84,10 @@ func Cut(s, sep string) (before, after string) {
 	}
 	panic("Separator was not found in string")
 }
+
+func Ints(text string) (ns []int) {
+	for _, n := range strings.Split(text, ",") {
+		ns = append(ns, MustInt(n))
+	}
+	return
+}
