@@ -91,3 +91,7 @@ func Ints(text string) (ns []int) {
 	}
 	return
 }
+
+func ExLines(text string) []string {
+	return strings.Split(strings.TrimSpace(text), "\n")
+}
