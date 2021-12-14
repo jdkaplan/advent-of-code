@@ -14,6 +14,7 @@ func main() {
 	text := aoc.Input().ReadFile("day14.txt")
 	start, rules := parse(text)
 	fmt.Println(run(start, rules, 10))
+	fmt.Println(run2(start, rules, 40))
 }
 
 type Rule struct {
@@ -71,6 +72,69 @@ func run(s string, rules []Rule, steps int) int {
 	})
 	min, max := chars[0], chars[len(chars)-1]
 	return counts[max] - counts[min]
+}
+
+func run2(s string, rules []Rule, steps int) int {
+	re := make(Re)
+	for _, r := range rules {
+		re.Put(r.a, r.b, r.i)
+	}
+
+	counts := make(map[rune]int)
+	counts[rune(s[0])]++
+
+	type node struct {
+		s     string
+		steps int
+	}
+	var queue []node
+	for _, s := range allPairs(s) {
+		queue = append(queue, node{s: s, steps: steps})
+	}
+
+	for len(queue) > 0 {
+		fmt.Println(len(queue))
+		n := queue[0]
+		queue = queue[1:]
+		s, steps := n.s, n.steps
+		for ; steps > 0 && len(s) < 1<<15; steps-- {
+			s = expand(s, re)
+		}
+		if steps == 0 {
+			counts[rune(s[0])]--
+			for r, n := range countChars(s) {
+				counts[r] += n
+			}
+		} else {
+			for _, s := range allPairs(s) {
+				queue = append(queue, node{s: s, steps: steps})
+			}
+		}
+	}
+
+	var chars []rune
+	for r := range counts {
+		chars = append(chars, r)
+	}
+	sort.Slice(chars, func(i, j int) bool {
+		return counts[chars[i]] < counts[chars[j]]
+	})
+	min, max := chars[0], chars[len(chars)-1]
+	return counts[max] - counts[min]
+}
+
+func allPairs(s string) []string {
+	var out []string
+	w := pairs(s)
+	for {
+		a, b, err := w.Next()
+		if errors.Is(err, io.EOF) {
+			return out
+		} else if err != nil {
+			panic(err)
+		}
+		out = append(out, string([]rune{a, b}))
+	}
 }
 
 func expand(s string, re Re) string {
