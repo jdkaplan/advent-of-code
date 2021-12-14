@@ -14,7 +14,7 @@ func main() {
 	text := aoc.Input().ReadFile("day14.txt")
 	start, rules := parse(text)
 	fmt.Println(run(start, rules, 10))
-	fmt.Println(run2(start, rules, 40))
+	fmt.Println(run(start, rules, 40))
 }
 
 type Rule struct {
@@ -32,24 +32,22 @@ func parse(text string) (string, []Rule) {
 	return start, rules
 }
 
-type Re map[rune]map[rune]rune
+type Pair [2]rune
 
-func (r Re) Get(a, b rune) (rune, bool) {
-	inner, ok := r[a]
+type Re map[Pair]rune
+
+func (r Re) Sub(p Pair) []Pair {
+	ins, ok := r[p]
 	if !ok {
-		return rune(0), false
+		return []Pair{p}
 	}
-	ins, ok := inner[b]
-	return ins, ok
+	p1 := Pair{p[0], ins}
+	p2 := Pair{ins, p[1]}
+	return []Pair{p1, p2}
 }
 
 func (r Re) Put(a, b, i rune) {
-	inner, ok := r[a]
-	if !ok {
-		inner = make(map[rune]rune)
-		r[a] = inner
-	}
-	inner[b] = i
+	r[Pair{a, b}] = i
 }
 
 func run(s string, rules []Rule, steps int) int {
@@ -58,58 +56,20 @@ func run(s string, rules []Rule, steps int) int {
 		re.Put(r.a, r.b, r.i)
 	}
 
+	pc := make(map[Pair]int)
+	for _, p := range allPairs(s) {
+		pc[p]++
+	}
+	first := rune(s[0])
+
 	for i := 0; i < steps; i++ {
-		s = expand(s, re)
-	}
-
-	counts := countChars(s)
-	var chars []rune
-	for r := range counts {
-		chars = append(chars, r)
-	}
-	sort.Slice(chars, func(i, j int) bool {
-		return counts[chars[i]] < counts[chars[j]]
-	})
-	min, max := chars[0], chars[len(chars)-1]
-	return counts[max] - counts[min]
-}
-
-func run2(s string, rules []Rule, steps int) int {
-	re := make(Re)
-	for _, r := range rules {
-		re.Put(r.a, r.b, r.i)
+		pc = expand(pc, re)
 	}
 
 	counts := make(map[rune]int)
-	counts[rune(s[0])]++
-
-	type node struct {
-		s     string
-		steps int
-	}
-	var queue []node
-	for _, s := range allPairs(s) {
-		queue = append(queue, node{s: s, steps: steps})
-	}
-
-	for len(queue) > 0 {
-		fmt.Println(len(queue))
-		n := queue[0]
-		queue = queue[1:]
-		s, steps := n.s, n.steps
-		for ; steps > 0 && len(s) < 1<<15; steps-- {
-			s = expand(s, re)
-		}
-		if steps == 0 {
-			counts[rune(s[0])]--
-			for r, n := range countChars(s) {
-				counts[r] += n
-			}
-		} else {
-			for _, s := range allPairs(s) {
-				queue = append(queue, node{s: s, steps: steps})
-			}
-		}
+	counts[first]++
+	for p, c := range pc {
+		counts[p[1]] += c
 	}
 
 	var chars []rune
@@ -123,8 +83,8 @@ func run2(s string, rules []Rule, steps int) int {
 	return counts[max] - counts[min]
 }
 
-func allPairs(s string) []string {
-	var out []string
+func allPairs(s string) []Pair {
+	var out []Pair
 	w := pairs(s)
 	for {
 		a, b, err := w.Next()
@@ -133,27 +93,18 @@ func allPairs(s string) []string {
 		} else if err != nil {
 			panic(err)
 		}
-		out = append(out, string([]rune{a, b}))
+		out = append(out, Pair{a, b})
 	}
 }
 
-func expand(s string, re Re) string {
-	w := pairs(s)
-	var sb strings.Builder
-	for {
-		a, b, err := w.Next()
-		if errors.Is(err, io.EOF) {
-			sb.WriteRune(a)
-			break
-		} else if err != nil {
-			panic(err)
-		}
-		sb.WriteRune(a)
-		if i, ok := re.Get(a, b); ok {
-			sb.WriteRune(i)
+func expand(pc map[Pair]int, re Re) map[Pair]int {
+	out := make(map[Pair]int)
+	for p, c := range pc {
+		for _, b := range re.Sub(p) {
+			out[b] += c
 		}
 	}
-	return sb.String()
+	return out
 }
 
 type Window struct {
@@ -175,18 +126,4 @@ func pairs(s string) *Window {
 		panic(err)
 	}
 	return w
-}
-
-func countChars(s string) map[rune]int {
-	r := strings.NewReader(s)
-	m := make(map[rune]int)
-	for {
-		c, _, err := r.ReadRune()
-		if errors.Is(err, io.EOF) {
-			return m
-		} else if err != nil {
-			panic(err)
-		}
-		m[c]++
-	}
 }
