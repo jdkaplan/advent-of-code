@@ -3,6 +3,7 @@ package main
 import (
 	"container/heap"
 	"fmt"
+	"strings"
 
 	"github.com/jdkaplan/advent-of-code/aoc"
 )
@@ -10,11 +11,21 @@ import (
 func main() {
 	lines := aoc.Input().ReadLines("day15.txt")
 	fmt.Println(part1(lines))
+	fmt.Println(part2(lines))
 }
 
 func part1(lines []string) int {
 	g := NewGrid(lines)
-	return lowrisk(g, RC{0, 0}, RC{g.Rows - 1, g.Cols - 1})
+	start := RC{0, 0}
+	goal := RC{g.Rows - 1, g.Cols - 1}
+	return lowrisk(start, goal, g.Neighbors, g.Risk)
+}
+
+func part2(lines []string) int {
+	g := NewGrid(lines)
+	start := RC{0, 0}
+	goal := RC{5*g.Rows - 1, 5*g.Cols - 1}
+	return lowrisk(start, goal, g.Neighbors2, g.Risk2)
 }
 
 type RC struct{ r, c int }
@@ -59,7 +70,45 @@ func (g Grid) Risk(rc RC) int {
 	return g.m[rc]
 }
 
-func lowrisk(g Grid, start, goal RC) (risk int) {
+func (g Grid) Neighbors2(rc RC) (ns []RC) {
+	r, c := rc.r, rc.c
+	for _, n := range []RC{
+		{r - 1, c},
+		{r, c - 1},
+		{r, c + 1},
+		{r + 1, c},
+	} {
+		if 0 <= n.r && n.r < 5*g.Rows && 0 <= n.c && n.c < 5*g.Cols {
+			ns = append(ns, n)
+		}
+	}
+	return
+}
+
+func (g Grid) Risk2(rc RC) int {
+	rr := rc.r % g.Rows
+	cc := rc.c % g.Cols
+	xr := rc.r / g.Rows
+	xc := rc.c / g.Cols
+	return (((g.m[RC{rr, cc}] + xr + xc) - 1) % 9) + 1
+}
+
+func (g Grid) String() string {
+	var sb strings.Builder
+	for r := 0; r < 5*g.Rows; r++ {
+		for c := 0; c < 5*g.Cols; c++ {
+			fmt.Fprintf(&sb, "%d", g.Risk2(RC{r, c}))
+		}
+		sb.WriteString("\n")
+	}
+	return sb.String()
+}
+
+func lowrisk(
+	start, goal RC,
+	neighborsFn func(RC) []RC,
+	costFn func(RC) int,
+) (risk int) {
 	pq := make(PriorityQueue, 1)
 	pq[0] = &Node{
 		rc:   start,
@@ -77,8 +126,8 @@ func lowrisk(g Grid, start, goal RC) (risk int) {
 		if seen[rc] {
 			continue
 		}
-		for _, n := range g.Neighbors(rc) {
-			pq.Insert(n, cost+g.Risk(n))
+		for _, n := range neighborsFn(rc) {
+			pq.Insert(n, cost+costFn(n))
 		}
 		seen[rc] = true
 	}
