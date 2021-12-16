@@ -9,7 +9,9 @@ import (
 
 func main() {
 	text := aoc.Input().ReadFile("day16.txt")
-	fmt.Println(part1(parse(text)))
+	b := parse(text)
+	fmt.Println(part1(b))
+	fmt.Println(part2(b))
 }
 
 type bits []int
@@ -50,6 +52,11 @@ func part1(b bits) uint {
 	return sumVersions(p)
 }
 
+func part2(b bits) uint {
+	p, _ := packet(b)
+	return p.Value()
+}
+
 func sumVersions(p Packet) uint {
 	switch p := p.(type) {
 	case Literal: // no-op
@@ -68,15 +75,17 @@ func sumVersions(p Packet) uint {
 type Packet interface {
 	Version() uint
 	Type() uint
+	Value() uint
 }
 
 type Literal struct {
-	V, T  uint
-	Value uint
+	V, T uint
+	Val  uint
 }
 
 func (l Literal) Version() uint { return l.V }
 func (l Literal) Type() uint    { return l.T }
+func (l Literal) Value() uint   { return l.Val }
 
 type Operator struct {
 	V, T    uint
@@ -85,6 +94,76 @@ type Operator struct {
 
 func (o Operator) Version() uint { return o.V }
 func (o Operator) Type() uint    { return o.T }
+
+func (o Operator) Value() uint {
+	switch o.T {
+	case 0: // sum
+		var sum uint
+		for _, p := range o.Packets {
+			sum += p.Value()
+		}
+		return sum
+	case 1: // product
+		prod := uint(1)
+		for _, p := range o.Packets {
+			prod *= p.Value()
+		}
+		return prod
+	case 2: // minimum
+		min := o.Packets[0].Value()
+		for _, p := range o.Packets[1:] {
+			if v := p.Value(); v < min {
+				min = v
+			}
+		}
+		return min
+	case 3: // maximum
+		max := uint(0)
+		for _, p := range o.Packets {
+			if v := p.Value(); v > max {
+				max = v
+			}
+		}
+		return max
+	case 4: // literal
+		panic("Unexpected literal")
+	case 5: // greater than
+		if l := len(o.Packets); l != 2 {
+			panic(fmt.Sprintf("Expected 2 packets, got %d", l))
+		}
+		v1 := o.Packets[0].Value()
+		v2 := o.Packets[1].Value()
+		if v1 > v2 {
+			return 1
+		} else {
+			return 0
+		}
+	case 6: // less than
+		if l := len(o.Packets); l != 2 {
+			panic(fmt.Sprintf("Expected 2 packets, got %d", l))
+		}
+		v1 := o.Packets[0].Value()
+		v2 := o.Packets[1].Value()
+		if v1 < v2 {
+			return 1
+		} else {
+			return 0
+		}
+	case 7: // equal to
+		if l := len(o.Packets); l != 2 {
+			panic(fmt.Sprintf("Expected 2 packets, got %d", l))
+		}
+		v1 := o.Packets[0].Value()
+		v2 := o.Packets[1].Value()
+		if v1 == v2 {
+			return 1
+		} else {
+			return 0
+		}
+	default:
+		panic(fmt.Sprintf("Unexpected type: %d", o.T))
+	}
+}
 
 func packet(b bits) (Packet, bits) {
 	v, b := b.Consume(3)
