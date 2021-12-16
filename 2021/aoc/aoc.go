@@ -39,6 +39,14 @@ func MustInt(s string) int {
 	return i
 }
 
+func MustHex(s string) int {
+	i, err := strconv.ParseInt(s, 16, 0)
+	if err != nil {
+		panic(err)
+	}
+	return int(i)
+}
+
 type Inputs struct {
 	fs fs.FS
 }
