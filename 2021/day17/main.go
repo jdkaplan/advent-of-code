@@ -19,6 +19,7 @@ func main() {
 	)
 	r := Region{x1, x2, y1, y2}
 	fmt.Println(part1(r))
+	fmt.Println(part2(r))
 }
 
 type Region struct{ x1, x2, y1, y2 int }
@@ -65,6 +66,28 @@ func part1(r Region) int {
 		}
 	}
 	return hmax
+}
+
+func part2(r Region) (count int) {
+	vxmin, vxmax := vxrange(r.x1, r.x2)
+	vymin, vymax := vyrange(r.y1, r.y2)
+	for vx := vxmin; vx <= vxmax; vx++ {
+		// High parabolas
+		for vy := vymin; vy <= vymax; vy++ {
+			hit := simulate(Velocity{vx, vy}, r)
+			if hit {
+				count++
+			}
+		}
+		// Low parabolas
+		for vy := vymin - 1; vy >= r.y1; vy-- {
+			hit := simulate(Velocity{vx, vy}, r)
+			if hit {
+				count++
+			}
+		}
+	}
+	return
 }
 
 func simulate(v Velocity, r Region) bool {
