@@ -9,6 +9,7 @@ import (
 func main() {
 	lines := aoc.Input().ReadLines("day18.txt")
 	fmt.Println(part1(lines))
+	fmt.Println(part2(lines))
 }
 
 func part1(lines []string) int {
@@ -23,6 +24,31 @@ func part1(lines []string) int {
 		}
 	}
 	return n.Magnitude()
+}
+
+func part2(lines []string) int {
+	var pairs [][2]string
+	for i := 0; i < len(lines)-1; i++ {
+		for j := i + 1; j < len(lines); j++ {
+			pairs = append(pairs,
+				[2]string{lines[i], lines[j]},
+				[2]string{lines[j], lines[i]},
+			)
+		}
+	}
+
+	max := 0
+	for _, p := range pairs {
+		a, b := Tree(p[0]), Tree(p[1])
+		n := add(a, b)
+		for n.Reduce() {
+		}
+		m := n.Magnitude()
+		if m > max {
+			max = m
+		}
+	}
+	return max
 }
 
 func add(a, b *Node) *Node {
