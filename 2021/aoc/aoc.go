@@ -2,6 +2,7 @@ package aoc
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -102,4 +103,10 @@ func Ints(text string) (ns []int) {
 
 func ExLines(text string) []string {
 	return strings.Split(strings.TrimSpace(text), "\n")
+}
+
+func MustScan(text, format string, dests ...interface{}) {
+	if _, err := fmt.Sscanf(text, format, dests...); err != nil {
+		panic(err)
+	}
 }
