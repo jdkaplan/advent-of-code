@@ -15,12 +15,30 @@ func init() {
 
 func main() {
 	text := aoc.Input().ReadFile("day19.txt")
-	fmt.Println(part1(text))
+	scanners := parseInput(text)
+	offsets := placeScanners(scanners)
+	fmt.Println(part1(scanners, offsets))
+	fmt.Println(part2(offsets))
 }
 
-func part1(text string) int {
-	scanners := parseInput(text)
+func part1(scanners map[int]Scanner, offsets map[int]Offset) int {
+	return uniqPoints(scanners, offsets)
+}
 
+func part2(offsets map[int]Offset) (max int) {
+	for i := 0; i < len(offsets)-1; i++ {
+		for j := i + 1; j < len(offsets); j++ {
+			si, sj := offsets[i], offsets[j]
+			distance := si.tx.minus(sj.tx).manhattan()
+			if distance > max {
+				max = distance
+			}
+		}
+	}
+	return
+}
+
+func placeScanners(scanners map[int]Scanner) map[int]Offset {
 	offsets := make(map[int]Offset)
 	offsets[0] = Offset{tx: V{0, 0, 0}, rot: noRot}
 
@@ -46,7 +64,7 @@ solve:
 			}
 		}
 	}
-	return uniqPoints(scanners, offsets)
+	return offsets
 }
 
 type Offset struct {
@@ -149,6 +167,17 @@ func (v V) dot(u V) int {
 
 func (v V) rot(r R) V {
 	return rot(r, v)
+}
+
+func (v V) manhattan() int {
+	return abs(v.x) + abs(v.y) + abs(v.z)
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }
 
 type R struct {
