@@ -9,13 +9,9 @@ import (
 )
 
 func main() {
-	startText := aoc.Input().ReadFile("day23.txt")
-	goalText := aoc.Input().ReadFile("day23-goal.txt")
-
+	startText := aoc.Input().ReadFile("day23-part2.txt")
 	w, start := parseInput(startText)
-	_, goal := parseInput(goalText)
-
-	fmt.Println(part1(w, start, goal))
+	fmt.Println(part1(w, start))
 }
 
 func parseInput(text string) (Walls, State) {
@@ -38,20 +34,33 @@ func parseInput(text string) (Walls, State) {
 	bs := pods[Bronze]
 	cs := pods[Copper]
 	ds := pods[Desert]
+	if len(as) != podCount {
+		panic(as)
+	}
+	if len(bs) != podCount {
+		panic(bs)
+	}
+	if len(cs) != podCount {
+		panic(cs)
+	}
+	if len(ds) != podCount {
+		panic(ds)
+	}
 	s := State{
-		A: [2]RC{as[0], as[1]},
-		B: [2]RC{bs[0], bs[1]},
-		C: [2]RC{cs[0], cs[1]},
-		D: [2]RC{ds[0], ds[1]},
+		A: [podCount]RC{as[0], as[1], as[2], as[3]},
+		B: [podCount]RC{bs[0], bs[1], bs[2], bs[3]},
+		C: [podCount]RC{cs[0], cs[1], cs[2], cs[3]},
+		D: [podCount]RC{ds[0], ds[1], ds[2], ds[3]},
 	}
 	return w, s
 }
 
-func part1(w Walls, start, goal State) int {
+func part1(w Walls, start State) int {
 	successors := func(s State) map[State]int {
+		fmt.Println(s.Debug(w))
 		return s.Successors(w)
 	}
-	return search(start, goal, successors)
+	return search(start, State.Goal, successors, State.Wrong)
 }
 
 type Object rune
@@ -95,10 +104,14 @@ func (rc RC) Neighbors() []RC {
 	}
 }
 
+const podCount = 4
+const rHallway = 1
+const rMax = rHallway + podCount
+
 type Walls map[RC]bool
 
 func (w Walls) IsDoor(rc RC) bool {
-	if rc.r != 1 {
+	if rc.r != rHallway {
 		return false
 	}
 	switch rc.c {
@@ -110,29 +123,34 @@ func (w Walls) IsDoor(rc RC) bool {
 
 func (w Walls) Blocked(rc RC) bool {
 	r, c := rc.r, rc.c
-	ok := 1 <= r && r <= 3 && 1 <= c && c <= 9
+	ok := rHallway <= r && r <= rMax && 1 <= c && c <= 9
 	wall := w[rc]
 	return ok && !wall
 }
 
-type State struct{ A, B, C, D [2]RC }
+type State struct{ A, B, C, D [podCount]RC }
 
 func (s State) pods() map[RC]Object {
-	return map[RC]Object{
-		s.A[0]: Amber,
-		s.A[1]: Amber,
-		s.B[0]: Bronze,
-		s.B[1]: Bronze,
-		s.C[0]: Copper,
-		s.C[1]: Copper,
-		s.D[0]: Desert,
-		s.D[1]: Desert,
+	p := make(map[RC]Object)
+	for _, a := range s.A {
+		p[a] = Amber
 	}
+	for _, b := range s.B {
+		p[b] = Bronze
+	}
+	for _, c := range s.C {
+		p[c] = Copper
+	}
+	for _, d := range s.D {
+		p[d] = Desert
+	}
+	return p
 }
+
 func (s State) Debug(w Walls) string {
 	pods := s.pods()
 	var sb strings.Builder
-	for r := 0; r <= 4; r++ {
+	for r := 0; r <= rMax+1; r++ {
 		for c := 0; c <= 12; c++ {
 			rc := RC{r, c}
 			if w[rc] {
@@ -197,6 +215,54 @@ func (s State) Successors(w Walls) map[State]int {
 	return next
 }
 
+func (s State) Goal() bool {
+	for _, a := range s.A {
+		if a.c != 3 {
+			return false
+		}
+	}
+	for _, b := range s.B {
+		if b.c != 5 {
+			return false
+		}
+	}
+	for _, c := range s.C {
+		if c.c != 7 {
+			return false
+		}
+	}
+	for _, d := range s.D {
+		if d.c != 9 {
+			return false
+		}
+	}
+	return true
+}
+
+func (s State) Wrong() (cost int) {
+	for _, a := range s.A {
+		if a.c != 3 {
+			cost += 2
+		}
+	}
+	for _, b := range s.B {
+		if b.c != 5 {
+			cost += 20
+		}
+	}
+	for _, c := range s.C {
+		if c.c != 7 {
+			cost += 200
+		}
+	}
+	for _, d := range s.D {
+		if d.c != 9 {
+			cost += 2000
+		}
+	}
+	return
+}
+
 func podMoves(w Walls, s State, start RC, kind Object) (costs map[RC]int) {
 	var targetC, cost int
 	switch kind {
@@ -218,32 +284,37 @@ func podMoves(w Walls, s State, start RC, kind Object) (costs map[RC]int) {
 type Mode string
 
 const (
-	Error Mode = "error"
-	Exit  Mode = "exit"
-	Wait  Mode = "wait"
-	Done  Mode = "done"
+	Exit Mode = "exit"
+	Wait Mode = "wait"
+	Park Mode = "park"
+	Done Mode = "done"
 )
 
 func podMode(w Walls, s State, rc RC, kind Object, targetC int) Mode {
 	pods := s.pods()
-	if rc.r == 1 {
-		// In the hallway.
-		return Wait
+	if rc.r == rHallway {
+		// In the hallway. Would another pod need to leave?
+		for r := rc.r + 1; r <= rMax; r++ {
+			inner := RC{r, targetC}
+			if k, ok := pods[inner]; ok && k != kind {
+				// Need to let the other pod out.
+				return Wait
+			}
+		}
+		// Nope, get moving!
+		return Park
 	}
 	if rc.c == targetC {
-		// In correct column.
-		inner := RC{3, targetC}
-		if rc == inner {
-			// No reason to leave!
-			return Done
+		// In correct column. Does another pod want to leave?
+		for r := rc.r + 1; r <= rMax; r++ {
+			inner := RC{r, targetC}
+			if k, ok := pods[inner]; ok && k != kind {
+				// Need to let the other pod out.
+				return Exit
+			}
 		}
-		// Double-parked. Does the other pod want to leave?
-		if pods[inner] == kind {
-			// Nope, all good!
-			return Done
-		}
-		// Need to let the other pod out.
-		return Exit
+		// No reason to leave!
+		return Done
 	}
 	return Exit
 }
@@ -254,12 +325,15 @@ func podPath(w Walls, s State, rc RC, mode Mode, targetC int, cost int) (costs m
 		// Any walkable space in the hallway that's not the door.
 		costs = make(map[RC]int)
 		for _, spot := range walk(w, s, rc) {
-			if spot.r == 1 && !w.IsDoor(spot) {
+			if spot.r == rHallway && !w.IsDoor(spot) {
 				costs[spot] = cost * manhattan(rc, spot)
 			}
 		}
 		return costs
 	case Wait:
+		// Do nothing
+		return nil
+	case Park:
 		// Only the correct parking spot
 		var bestSpot RC
 		for _, spot := range walk(w, s, rc) {
@@ -324,13 +398,20 @@ func walk(w Walls, s State, from RC) (spots []RC) {
 }
 
 func search(
-	start, goal State,
+	start State,
+	isGoal func(State) bool,
 	successors func(State) map[State]int,
+	heuristic func(State) int,
 ) (totalCost int) {
+	if heuristic == nil {
+		heuristic = func(State) int { return 0 }
+	}
+
 	pq := make(PriorityQueue, 1)
 	pq[0] = &Node{
 		s:    start,
 		cost: 0,
+		heur: 0,
 		idx:  0,
 	}
 	heap.Init(&pq)
@@ -338,14 +419,14 @@ func search(
 	seen := make(map[State]bool)
 	for len(pq) > 0 {
 		state, cost := pq.Next()
-		if state == goal {
+		if isGoal(state) {
 			return cost
 		}
 		if seen[state] {
 			continue
 		}
 		for s, c := range successors(state) {
-			pq.Insert(s, cost+c)
+			pq.Insert(s, cost+c, heuristic(state))
 		}
 		seen[state] = true
 	}
@@ -355,6 +436,7 @@ func search(
 type Node struct {
 	s    State
 	cost int
+	heur int
 	idx  int
 }
 
@@ -365,8 +447,8 @@ func (pq *PriorityQueue) Next() (s State, cost int) {
 	return n.s, n.cost
 }
 
-func (pq *PriorityQueue) Insert(s State, cost int) {
-	heap.Push(pq, &Node{s: s, cost: cost})
+func (pq *PriorityQueue) Insert(s State, cost int, heur int) {
+	heap.Push(pq, &Node{s: s, cost: cost, heur: heur})
 }
 
 func (pq PriorityQueue) Len() int {
@@ -374,7 +456,9 @@ func (pq PriorityQueue) Len() int {
 }
 
 func (pq PriorityQueue) Less(i, j int) bool {
-	return pq[i].cost < pq[j].cost
+	ii := pq[i].cost + pq[i].heur
+	jj := pq[j].cost + pq[j].heur
+	return ii < jj
 }
 
 func (p PriorityQueue) Swap(i, j int) {
