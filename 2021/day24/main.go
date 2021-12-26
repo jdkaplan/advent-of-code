@@ -22,6 +22,7 @@ func main() {
 	}
 
 	fmt.Println(part1(steps))
+	fmt.Println(part2(steps))
 }
 
 func decompile(prog Program) (steps Steps) {
@@ -59,6 +60,32 @@ func part1(steps Steps) int {
 	return -1
 }
 
+func part2(steps Steps) int {
+	var inp [14]int
+	var ups []Equation
+
+	for i, step := range steps {
+		switch step.zDiv {
+		case 1:
+			ups = append([]Equation{{i, step.yOff}}, ups...)
+		case 26:
+			up := ups[0]
+			ups = ups[1:]
+			dn := Equation{i, -step.xOff}
+			u, d := minSolution(dn.d - up.d)
+			inp[up.i] = u
+			inp[dn.i] = d
+		default:
+			panic(step.zDiv)
+		}
+	}
+
+	if steps.Run(inp[:], false) == 0 {
+		return reassemble(inp)
+	}
+	return -1
+}
+
 func reassemble(ds [14]int) (n int) {
 	for _, d := range ds {
 		n *= 10
@@ -70,6 +97,17 @@ func reassemble(ds [14]int) (n int) {
 func maxSolution(d int) (i, j int) {
 	for i := 9; i >= 1; i-- {
 		for j := 9; j >= 1; j-- {
+			if i-j == d {
+				return i, j
+			}
+		}
+	}
+	return 0, 0
+}
+
+func minSolution(d int) (i, j int) {
+	for i := 1; i <= 9; i++ {
+		for j := 1; j <= 9; j++ {
 			if i-j == d {
 				return i, j
 			}
