@@ -11,3 +11,4 @@ I like solving the [Advent of Code](https://adventofcode.com/) challenges every 
 Languages I'd like to use for the TODO years:
 - J (or other APL-like)
 - Haskell
+- Zig
