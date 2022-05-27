@@ -12,3 +12,4 @@ Languages I'd like to use for the TODO years:
 - J (or other APL-like)
 - Haskell
 - Zig
+- Nim
