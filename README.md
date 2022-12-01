@@ -3,12 +3,13 @@ I like solving the [Advent of Code](https://adventofcode.com/) challenges every 
 - 2015: TODO
 - 2016: TODO
 - 2017: Python
-- 2018: Rust
+- 2018: Rust (v1.30, 2018 edition)
 - 2019: Ruby
 - 2020: Elixir
 - 2021: Go
+- 2022: Rust (Again! v1.65, 2021 edition)
 
-Languages I'd like to use for the TODO years:
+Languages I'd like to use for the future or TODO years:
 - J (or other APL-like)
 - Haskell
 - Zig
