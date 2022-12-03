@@ -36,13 +36,10 @@ fn part2(input: &str) -> usize {
     let mut sum = 0;
     let lines = input.split('\n').filter(|l| !l.is_empty());
     for group in &lines.chunks(3) {
-        let sets: Vec<HashSet<char>> = group
+        let shared: HashSet<char> = group
             .map(|rucksack| rucksack.chars().collect::<HashSet<char>>())
-            .collect();
-
-        let mut shared = sets[0].clone();
-        shared = shared.intersection(&sets[1]).cloned().collect();
-        shared = shared.intersection(&sets[2]).cloned().collect();
+            .reduce(|acc, item| acc.intersection(&item).cloned().collect())
+            .unwrap();
 
         let badge = shared.iter().next().unwrap();
 
