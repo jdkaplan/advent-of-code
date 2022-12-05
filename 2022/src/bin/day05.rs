@@ -18,14 +18,16 @@ struct Ship {
 
 impl Ship {
     fn parse(input: &str) -> Self {
-        let lines: Vec<&str> = input.trim().split('\n').rev().collect();
+        let lines: Vec<&str> = input.trim_end().split('\n').rev().collect();
+
+        let num_stacks = lines[0].split("   ").count();
 
         let mut ship = Ship {
-            stacks: (0..=8).map(|_| Vec::new()).collect(),
+            stacks: (0..num_stacks).map(|_| Vec::new()).collect(),
         };
 
         for line in &lines[1..] {
-            for stk in 0..=8 {
+            for stk in 0..num_stacks {
                 let i = 4 * stk + 1;
                 let contents = match line.get(i..i + 1) {
                     None => continue,
@@ -85,7 +87,13 @@ fn part1(input: &str) -> String {
     let sections: Vec<&str> = input.split("\n\n").collect();
 
     let mut ship = Ship::parse(sections[0]);
-    let moves: Vec<Move> = sections[1].trim().split('\n').map(Move::parse).collect();
+    let moves: Vec<Move> = sections[1]
+        .trim_end()
+        .split('\n')
+        .map(Move::parse)
+        .collect();
+
+    dbg!(&ship);
 
     for m in moves {
         ship.do_move_1(m);
@@ -98,7 +106,11 @@ fn part2(input: &str) -> String {
     let sections: Vec<&str> = input.split("\n\n").collect();
 
     let mut ship = Ship::parse(sections[0]);
-    let moves: Vec<Move> = sections[1].trim().split('\n').map(Move::parse).collect();
+    let moves: Vec<Move> = sections[1]
+        .trim_end()
+        .split('\n')
+        .map(Move::parse)
+        .collect();
 
     for m in moves {
         ship.do_move_2(m);
