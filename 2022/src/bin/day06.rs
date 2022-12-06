@@ -9,28 +9,23 @@ fn main() {
 
 fn part1(input: &str) -> usize {
     let sig: Vec<char> = input.trim().chars().collect();
+    find_marker(4, sig)
+}
 
-    for i in 0..(sig.len()) {
-        let buf = &sig[i..(i + 4)];
-        if all_different(buf) {
-            return i + 4;
-        }
-    }
-
-    0
+fn part2(input: &str) -> usize {
+    let sig: Vec<char> = input.trim().chars().collect();
+    find_marker(14, sig)
 }
 
 fn all_different(c: &[char]) -> bool {
     c.iter().cloned().collect::<HashSet<char>>().len() == c.len()
 }
 
-fn part2(input: &str) -> usize {
-    let sig: Vec<char> = input.trim().chars().collect();
-
-    for i in 0..(sig.len()) {
-        let buf = &sig[i..(i + 14)];
+fn find_marker(width: usize, v: Vec<char>) -> usize {
+    for i in 0..(v.len()) {
+        let buf = &v[i..(i + width)];
         if all_different(buf) {
-            return i + 14;
+            return i + width;
         }
     }
 
