@@ -5,7 +5,7 @@ const INPUT: &str = include_str!("../../input/day08.txt");
 fn main() {
     let grid = Grid::new(INPUT);
 
-    let visibility = grid.count_visible();
+    let visibility = grid.find_visible();
     let part1 = visibility.iter().filter(|(_, v)| !v.is_empty()).count();
     println!("Part 1: {}", part1);
 
@@ -54,61 +54,33 @@ impl Grid {
         Self { map, rows, cols }
     }
 
-    fn count_visible(&self) -> HashMap<RC, HashSet<Visibility>> {
+    fn find_visible(&self) -> HashMap<RC, HashSet<Visibility>> {
         // Assume all trees are visible from all sides until we learn that they're blocked.
         let mut visibility: HashMap<RC, HashSet<Visibility>> = HashMap::new();
 
-        for r in 0..self.rows {
-            for c in 0..self.cols {
-                visibility.insert((r, c), Visibility::all());
-            }
+        for (r, c) in itertools::iproduct!(0..self.rows, 0..self.cols) {
+            visibility.insert((r, c), Visibility::all());
         }
 
+        // Now see what each tree would block.
         for (r1, c1) in itertools::iproduct!(0..self.rows, 0..self.cols) {
-            let big = (r1, c1);
-            let h1 = self.map[&big];
+            let height = self.map[&(r1, c1)];
 
-            for (r2, c2) in (0..r1).map(|r| (r, c1)) {
-                let lil = (r2, c2);
-                let h2 = self.map[&lil];
+            use Visibility::*;
+            let block: Vec<(Visibility, Vec<RC>)> = vec![
+                (Top, (0..r1).map(|r| (r, c1)).collect()),
+                (Bottom, ((r1 + 1)..self.rows).map(|r| (r, c1)).collect()),
+                (Right, (0..c1).map(|c| (r1, c)).collect()),
+                (Left, ((c1 + 1)..self.cols).map(|c| (r1, c)).collect()),
+            ];
 
-                if h1 >= h2 {
-                    visibility.entry(lil).and_modify(|v| {
-                        v.remove(&Visibility::Bottom);
-                    });
-                }
-            }
-
-            for (r2, c2) in ((r1 + 1)..self.rows).map(|r| (r, c1)) {
-                let lil = (r2, c2);
-                let h2 = self.map[&lil];
-
-                if h1 >= h2 {
-                    visibility.entry(lil).and_modify(|v| {
-                        v.remove(&Visibility::Top);
-                    });
-                }
-            }
-
-            for (r2, c2) in (0..c1).map(|c| (r1, c)) {
-                let lil = (r2, c2);
-                let h2 = self.map[&lil];
-
-                if h1 >= h2 {
-                    visibility.entry(lil).and_modify(|v| {
-                        v.remove(&Visibility::Right);
-                    });
-                }
-            }
-
-            for (r2, c2) in ((c1 + 1)..self.cols).map(|c| (r1, c)) {
-                let lil = (r2, c2);
-                let h2 = self.map[&lil];
-
-                if h1 >= h2 {
-                    visibility.entry(lil).and_modify(|v| {
-                        v.remove(&Visibility::Left);
-                    });
+            for (vis, ray) in block {
+                for rc in ray {
+                    if height >= self.map[&rc] {
+                        visibility.entry(rc).and_modify(|v| {
+                            v.remove(&vis);
+                        });
+                    }
                 }
             }
         }
@@ -116,8 +88,8 @@ impl Grid {
         visibility
     }
 
-    fn score_views(&self) -> HashMap<RC, u64> {
-        let mut scene: HashMap<RC, u64> = HashMap::new();
+    fn score_views(&self) -> HashMap<RC, usize> {
+        let mut scene: HashMap<RC, usize> = HashMap::new();
 
         for (r1, c1) in itertools::iproduct!(0..self.rows, 0..self.cols) {
             let big = (r1, c1);
@@ -125,19 +97,21 @@ impl Grid {
 
             let mut score = 1;
 
+            let blockage = |rc: &RC| -> bool { self.map[rc] >= h1 };
+
             let up = (0..r1).rev().map(|r| (r, c1));
-            score *= take_until(up, |rc| self.map[rc] >= h1).len();
+            score *= take_until(up, blockage).len();
 
             let down = ((r1 + 1)..self.rows).map(|r| (r, c1));
-            score *= take_until(down, |rc| self.map[rc] >= h1).len();
+            score *= take_until(down, blockage).len();
 
             let left = (0..c1).rev().map(|c| (r1, c));
-            score *= take_until(left, |rc| self.map[rc] >= h1).len();
+            score *= take_until(left, blockage).len();
 
             let right = ((c1 + 1)..self.cols).map(|c| (r1, c));
-            score *= take_until(right, |rc| self.map[rc] >= h1).len();
+            score *= take_until(right, blockage).len();
 
-            scene.insert(big, score as u64);
+            scene.insert(big, score);
         }
 
         scene
