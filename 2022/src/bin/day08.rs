@@ -92,12 +92,11 @@ impl Grid {
         let mut scene: HashMap<RC, usize> = HashMap::new();
 
         for (r1, c1) in itertools::iproduct!(0..self.rows, 0..self.cols) {
-            let big = (r1, c1);
-            let h1 = self.map[&big];
+            let height = self.map[&(r1, c1)];
 
             let mut score = 1;
 
-            let blockage = |rc: &RC| -> bool { self.map[rc] >= h1 };
+            let blockage = |rc: &RC| -> bool { self.map[rc] >= height };
 
             let up = (0..r1).rev().map(|r| (r, c1));
             score *= take_until(up, blockage).len();
@@ -111,7 +110,7 @@ impl Grid {
             let right = ((c1 + 1)..self.cols).map(|c| (r1, c));
             score *= take_until(right, blockage).len();
 
-            scene.insert(big, score);
+            scene.insert((r1, c1), score);
         }
 
         scene
