@@ -8,43 +8,38 @@ use serde::{
 const INPUT: &str = include_str!("../../input/day09.txt");
 
 fn main() {
-    println!("{}", part1(INPUT));
+    println!("{}", simulate(INPUT, 2));
+    println!("{}", simulate(INPUT, 10));
 }
 
-fn part1(input: &str) -> usize {
+fn simulate(input: &str, num_knots: usize) -> usize {
     let steps = parse_input(input);
 
-    let num_knots = 10;
-    let tail = num_knots - 1;
-
     let mut knots = vec![RC::new(0, 0); num_knots];
+    let tail = num_knots - 1;
 
     let mut tail_visited: HashSet<RC> = HashSet::new();
     tail_visited.insert(knots[tail]);
 
-    // render(&knots, &tail_visited);
     for step in steps {
-        println!("> {:?}, {}", step.d, step.n);
-
         for _ in 0..(step.n) {
             knots[0] = knots[0].mv(step.d.delta());
             for i in 1..(knots.len()) {
                 knots[i] = knots[i].follow(knots[i - 1]);
             }
-            // dbg!(head);
-            // dbg!(tail);
 
             tail_visited.insert(knots[tail]);
-
-            // render(&knots, &tail_visited);
         }
-
-        // render(&knots, &tail_visited);
-        // std::thread::sleep(std::time::Duration::from_millis(500));
     }
 
     render(&knots, &tail_visited);
     tail_visited.len()
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+struct Step {
+    d: Direction,
+    n: i64,
 }
 
 fn parse_input(input: &str) -> Vec<Step> {
@@ -59,12 +54,6 @@ fn parse_input(input: &str) -> Vec<Step> {
             Step { d, n }
         })
         .collect()
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-struct Step {
-    d: Direction,
-    n: i64,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -89,26 +78,14 @@ impl RC {
         }
     }
 
-    fn follow(&self, head: RC) -> RC {
-        // dbg!(head.r);
-        // dbg!(head.c);
-        // dbg!(self.r);
-        // dbg!(self.c);
-
-        let dr = head.r - self.r;
-        let dc = head.c - self.c;
-
-        // dbg!(dr);
-        // dbg!(dc);
+    fn follow(&self, target: RC) -> RC {
+        let dr = target.r - self.r;
+        let dc = target.c - self.c;
 
         // Adjacent
         if dr.abs() < 2 && dc.abs() < 2 {
-            // dbg!("OK");
             return *self;
         }
-
-        // dbg!(sign(dr));
-        // dbg!(sign(dc));
 
         RC::new(self.r + sign(dr), self.c + sign(dc))
     }
@@ -164,6 +141,7 @@ fn render(knots: &[RC], tail_visited: &HashSet<RC>) {
         }
     };
 
+    // (r, c) is probably something like (-y, x), but it's too late to change that now...
     for r in (lo.r..=hi.r).rev() {
         for c in lo.c..=hi.c {
             print!("{}", chr(r, c));
