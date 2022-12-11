@@ -40,7 +40,7 @@ impl Visibility {
 impl Grid {
     fn new(text: &str) -> Self {
         let mut map = HashMap::new();
-        let lines = aoc::split_lines(text);
+        let lines: Vec<&str> = aoc::lines(text).collect();
 
         let rows = lines.len();
         let cols = lines[0].len();

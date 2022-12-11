@@ -20,10 +20,9 @@ enum Instruction {
 }
 
 fn parse(input: &str) -> Vec<Instruction> {
-    aoc::split_lines(input)
-        .iter()
+    aoc::lines(input)
         .map(|line| {
-            let w = aoc::split_words(line);
+            let w: Vec<&str> = aoc::words(line).collect();
             match w[0] {
                 "noop" => Instruction::Noop,
                 "addx" => Instruction::Addx(w[1].parse().unwrap()),

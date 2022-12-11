@@ -1,7 +1,13 @@
-pub fn split_lines(s: &str) -> Vec<&str> {
-    s.trim_end().split('\n').collect()
+use std::str::Split;
+
+pub fn lines(s: &str) -> Split<char> {
+    s.trim_end().split('\n')
 }
 
-pub fn split_words(s: &str) -> Vec<&str> {
-    s.split(' ').collect()
+pub fn words(s: &str) -> Split<char> {
+    s.split(' ')
+}
+
+pub fn blocks(s: &str) -> Split<&str> {
+    s.split("\n\n")
 }

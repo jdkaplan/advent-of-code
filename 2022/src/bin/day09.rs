@@ -43,10 +43,9 @@ struct Step {
 }
 
 fn parse_input(input: &str) -> Vec<Step> {
-    aoc::split_lines(input)
-        .iter()
+    aoc::lines(input)
         .map(|line| {
-            let words = aoc::split_words(line);
+            let words: Vec<&str> = aoc::words(line).collect();
 
             let d = Direction::from_str(words[0]).unwrap();
             let n = words[1].parse::<i64>().unwrap();
