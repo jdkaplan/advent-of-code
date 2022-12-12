@@ -1,9 +1,16 @@
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::io::Write;
+
+use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 
 const INPUT: &str = include_str!("../../input/day12.txt");
 
 fn main() {
     let (hill, start, goal) = Hill::parse(INPUT);
+
+    palette().unwrap();
+    println!();
+    render(INPUT).unwrap();
 
     println!("Part 1: {}", part1(&hill, start, goal));
     println!("Part 2: {}", part2(&hill, goal));
@@ -120,4 +127,55 @@ impl Hill {
         }
         a
     }
+}
+
+fn render(text: &str) -> anyhow::Result<()> {
+    let writer = BufferWriter::stderr(ColorChoice::Always);
+    let mut buf = writer.buffer();
+
+    for line in aoc::lines(text) {
+        for c in line.chars() {
+            buf.set_color(&color(c))?;
+            write!(&mut buf, "█")?;
+        }
+        writeln!(&mut buf)?;
+    }
+
+    buf.set_color(ColorSpec::new().set_reset(true))?;
+    writer.print(&buf)?;
+    Ok(())
+}
+
+fn color(c: char) -> ColorSpec {
+    let mut color = ColorSpec::new();
+    let spec = match c {
+        'S' => Color::Blue,
+        'E' => Color::Green,
+        c => {
+            let elev = (c as u64) - ('a' as u64);
+            let gray = (elev * 256 / 26) as u8;
+            Color::Rgb(gray, gray, gray)
+        }
+    };
+    color.set_fg(Some(spec));
+    color
+}
+
+fn palette() -> anyhow::Result<()> {
+    let writer = BufferWriter::stderr(ColorChoice::Always);
+    let mut buf = writer.buffer();
+
+    let alphabet = "abcdefghijklmnopqrstuvwxyz";
+
+    writeln!(&mut buf, "{}", alphabet)?;
+
+    for c in alphabet.chars() {
+        buf.set_color(&color(c))?;
+        write!(&mut buf, "█")?;
+    }
+    writeln!(&mut buf)?;
+
+    buf.set_color(ColorSpec::new().set_reset(true))?;
+    writer.print(&buf)?;
+    Ok(())
 }

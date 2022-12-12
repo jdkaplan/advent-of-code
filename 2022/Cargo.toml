@@ -9,3 +9,4 @@ itertools = "0.10.5"
 path-absolutize = "3.0.14"
 regex = "1.7.0"
 serde = { version = "1.0.149", features = ["derive"] }
+termcolor = "1.1.3"
