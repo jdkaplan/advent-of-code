@@ -16,12 +16,12 @@ fn monkey_business(mut monkeys: Vec<Monkey>, rounds: usize, confidence: i64) -> 
 
     for _ in 1..=rounds {
         for m in 0..monkeys.len() {
+            // Don't forget to put the monkey back in the vec when we're done!
             let mut monkey = std::mem::take(&mut monkeys[m]);
-            let mut items = std::mem::take(&mut monkey.items);
 
-            for mut item in items.drain(0..) {
+            for mut item in monkey.items.drain(0..) {
                 monkey.inspections += 1;
-                item.worry = monkey.operation.apply(item.worry);
+                item.worry = monkey.operation.unwrap().apply(item.worry);
 
                 item.worry /= confidence;
                 item.worry %= yolo_factor;
@@ -44,7 +44,7 @@ fn monkey_business(mut monkeys: Vec<Monkey>, rounds: usize, confidence: i64) -> 
 struct Monkey {
     id: usize,
     items: VecDeque<Item>,
-    operation: Operation,
+    operation: Option<Operation>,
     test: Test,
 
     inspections: usize,
@@ -57,23 +57,21 @@ struct Item {
     worry: Worry,
 }
 
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Copy, Clone)]
 struct Operation {
     operator: Operator,
     operand: Operand,
 }
 
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Copy, Clone)]
 enum Operator {
-    #[default]
     Plus,
     Times,
 }
 
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Copy, Clone)]
 enum Operand {
     Const(i64),
-    #[default]
     Old,
 }
 
@@ -105,8 +103,8 @@ impl Operation {
 
         match (self.operand, self.operator) {
             (Const(n), Plus) => old + n,
-            (Old, Plus) => old + old,
             (Const(n), Times) => old * n,
+            (Old, Plus) => old + old,
             (Old, Times) => old * old,
         }
     }
@@ -184,7 +182,7 @@ impl Monkey {
                 .collect()
         };
 
-        let operation = Operation::parse(lines[2]);
+        let operation = Some(Operation::parse(lines[2]));
         let test = Test::parse(&lines[3..]);
 
         Self {
