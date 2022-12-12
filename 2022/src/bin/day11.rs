@@ -7,6 +7,12 @@ const INPUT: &str = include_str!("../../input/day11.txt");
 fn main() {
     let monkeys: Vec<Monkey> = aoc::blocks(INPUT).map(Monkey::parse).collect();
 
+    // Assumptions:
+    for (i, m) in monkeys.iter().enumerate() {
+        assert!(i == m.id);
+        assert!(m.operation.is_some());
+    }
+
     println!("Part 1: {}", monkey_business(monkeys.clone(), 20, 3));
     println!("Part 2: {}", monkey_business(monkeys, 10_000, 1));
 }
@@ -17,6 +23,8 @@ fn monkey_business(mut monkeys: Vec<Monkey>, rounds: usize, confidence: i64) -> 
     for _ in 1..=rounds {
         for m in 0..monkeys.len() {
             // Don't forget to put the monkey back in the vec when we're done!
+            //
+            // This is a workaround for simultaneous mutable references to multiple vec items.
             let mut monkey = std::mem::take(&mut monkeys[m]);
 
             for mut item in monkey.items.drain(0..) {
@@ -30,8 +38,7 @@ fn monkey_business(mut monkeys: Vec<Monkey>, rounds: usize, confidence: i64) -> 
                 monkeys[dest].items.push_back(item);
             }
 
-            let id = monkey.id;
-            monkeys[id] = monkey;
+            monkeys[m] = monkey;
         }
     }
 
