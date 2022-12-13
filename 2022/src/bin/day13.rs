@@ -119,7 +119,7 @@ impl Data {
 }
 
 impl Data {
-    fn lift(&self) -> Self {
+    fn to_list(&self) -> Self {
         match self {
             Data::List(_) => self.clone(),
             Data::Value(_) => Data::List(vec![self.clone()]),
@@ -166,8 +166,8 @@ impl Ord for Data {
             (Data::Value(l), Data::Value(r)) => l.cmp(r),
             (Data::List(l), Data::List(r)) => Data::zip_cmp(l, r),
 
-            (Data::Value(_), Data::List(_)) => self.lift().cmp(other),
-            (Data::List(_), Data::Value(_)) => self.cmp(&other.lift()),
+            (Data::Value(_), Data::List(_)) => self.to_list().cmp(other),
+            (Data::List(_), Data::Value(_)) => self.cmp(&other.to_list()),
         }
     }
 }
@@ -195,17 +195,12 @@ mod tests {
 
     #[test]
     fn test1() {
-        // let line = "[[[[2],9,1,[2,2,4,8]],[1,8,8],9,[7,2,[7,0,1],0,[10,9,10,3]]]]";
-        // let line = "[[[2],9,1,[2,2,4,8]],[1,8,8],9,[7,2,[7,0,1],0,[10,9,10,3]]]";
-        // let line = "[[2],9,1,[2,2,4,8]],[1,8,8],9,[7,2,[7,0,1],0,[10,9,10,3]]";
-        // let line = "[[2],9,1,[2,2,4,8]]";
         let line = "[[2],9]";
         let data = Data::parse(line);
 
         assert_eq!(data.to_string(), line);
 
         use Data::{List, Value};
-
         assert_eq!(data, List(vec![List(vec![Value(2)]), Value(9)]))
     }
 
