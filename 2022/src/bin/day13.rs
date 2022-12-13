@@ -118,6 +118,32 @@ impl Data {
     }
 }
 
+impl PartialEq for Data {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == Ordering::Equal
+    }
+}
+
+impl Eq for Data {}
+
+impl PartialOrd for Data {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Data {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Data::Value(l), Data::Value(r)) => l.cmp(r),
+            (Data::List(l), Data::List(r)) => Data::zip_cmp(l, r),
+
+            (Data::Value(_), Data::List(_)) => self.to_list().cmp(other),
+            (Data::List(_), Data::Value(_)) => self.cmp(&other.to_list()),
+        }
+    }
+}
+
 impl Data {
     fn to_list(&self) -> Self {
         match self {
@@ -142,32 +168,6 @@ impl Data {
                     }
                 }
             }
-        }
-    }
-}
-
-impl PartialEq for Data {
-    fn eq(&self, other: &Self) -> bool {
-        self.cmp(other) == Ordering::Equal
-    }
-}
-
-impl Eq for Data {}
-
-impl PartialOrd for Data {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Data {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match (self, other) {
-            (Data::Value(l), Data::Value(r)) => l.cmp(r),
-            (Data::List(l), Data::List(r)) => Data::zip_cmp(l, r),
-
-            (Data::Value(_), Data::List(_)) => self.to_list().cmp(other),
-            (Data::List(_), Data::Value(_)) => self.cmp(&other.to_list()),
         }
     }
 }
