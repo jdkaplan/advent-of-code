@@ -4,16 +4,27 @@ const INPUT: &str = include_str!("../../input/day14.txt");
 
 fn main() {
     println!("{}", part1(INPUT));
+    println!("{}", part2(INPUT));
 }
 
 fn part1(input: &str) -> usize {
     let paths = aoc::lines(input).map(Path::parse).collect();
     let mut wall = Wall::build(paths);
 
-    while wall.add_sand().is_some() {}
+    while wall.add_sand_1().is_some() {}
 
     wall.render();
     wall.sand.len()
+}
+
+fn part2(input: &str) -> usize {
+    let paths = aoc::lines(input).map(Path::parse).collect();
+    let mut wall = Wall::build(paths);
+
+    while let Some(_pos) = wall.add_sand_2() {}
+
+    wall.render();
+    wall.sand.len() + 1 // for the sand source
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -89,6 +100,7 @@ struct Wall {
     rocks: HashSet<Point>,
     sand: HashSet<Point>,
     y_abyss: i32,
+    y_floor: i32,
 }
 
 impl Wall {
@@ -108,15 +120,18 @@ impl Wall {
             }
         }
 
+        let y_floor = y_abyss;
+
         Self {
             rocks,
             sand,
             y_abyss,
+            y_floor,
         }
     }
 
     fn render(&self) {
-        let (lo, hi) = self.rocks.iter().fold(
+        let (lo, hi) = self.rocks.iter().chain(self.sand.iter()).fold(
             (Wall::SAND_SOURCE, Wall::SAND_SOURCE),
             |(lo, hi), Point { x, y }| {
                 (
@@ -170,7 +185,7 @@ impl Wall {
         !self.filled(p)
     }
 
-    fn add_sand(&mut self) -> Option<Point> {
+    fn add_sand_1(&mut self) -> Option<Point> {
         let mut pos = Wall::SAND_SOURCE;
 
         'tick: while pos.y <= self.y_abyss {
@@ -192,6 +207,35 @@ impl Wall {
         }
 
         if pos.y < self.y_abyss {
+            self.sand.insert(pos);
+            Some(pos)
+        } else {
+            None
+        }
+    }
+
+    fn add_sand_2(&mut self) -> Option<Point> {
+        let mut pos = Wall::SAND_SOURCE;
+
+        'tick: while pos.y <= self.y_floor {
+            let candidates = vec![
+                pos.mv(0, 1),  // down
+                pos.mv(-1, 1), // down-left
+                pos.mv(1, 1),  // down-right
+            ];
+
+            for next in candidates {
+                if self.empty(&next) {
+                    pos = next;
+                    continue 'tick;
+                }
+            }
+
+            // Stuck!
+            break 'tick;
+        }
+
+        if pos != Wall::SAND_SOURCE {
             self.sand.insert(pos);
             Some(pos)
         } else {
