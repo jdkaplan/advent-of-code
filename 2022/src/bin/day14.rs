@@ -8,11 +8,12 @@ fn main() {
 
 fn part1(input: &str) -> usize {
     let paths = aoc::lines(input).map(Path::parse).collect();
-    let wall = Wall::build(paths);
+    let mut wall = Wall::build(paths);
+
+    while wall.add_sand().is_some() {}
 
     wall.render();
-
-    wall.rocks.len()
+    wall.sand.len()
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -86,43 +87,53 @@ impl Segment {
 
 struct Wall {
     rocks: HashSet<Point>,
+    sand: HashSet<Point>,
+    y_abyss: i32,
 }
 
 impl Wall {
+    const SAND_SOURCE: Point = Point { x: 500, y: 0 };
+
     fn build(paths: Vec<Path>) -> Self {
+        let sand = HashSet::new();
         let mut rocks = HashSet::new();
+        let mut y_abyss = 0i32;
 
         for path in paths {
             for segment in path.segments() {
-                dbg!(segment);
                 for point in segment.tween() {
                     rocks.insert(point);
-                    dbg!(point);
+                    y_abyss = y_abyss.max(point.y);
                 }
             }
         }
 
-        Self { rocks }
+        Self {
+            rocks,
+            sand,
+            y_abyss,
+        }
     }
 
     fn render(&self) {
-        let lo = self
-            .rocks
-            .iter()
-            .cloned()
-            .reduce(|lo, p| Point::new(lo.x.min(p.x), lo.y.min(p.y)))
-            .unwrap();
-
-        let hi = self
-            .rocks
-            .iter()
-            .cloned()
-            .reduce(|hi, p| Point::new(hi.x.max(p.x), hi.y.max(p.y)))
-            .unwrap();
+        let (lo, hi) = self.rocks.iter().fold(
+            (Wall::SAND_SOURCE, Wall::SAND_SOURCE),
+            |(lo, hi), Point { x, y }| {
+                (
+                    Point::new(lo.x.min(*x), lo.y.min(*y)),
+                    Point::new(hi.x.max(*x), hi.y.max(*y)),
+                )
+            },
+        );
 
         let chr = move |x: i32, y: i32| -> char {
-            if self.rocks.contains(&Point { x, y }) {
+            let p = Point { x, y };
+            if p == Wall::SAND_SOURCE {
+                '+'
+            } else if self.rocks.contains(&p) {
                 '#'
+            } else if self.sand.contains(&p) {
+                'o'
             } else {
                 '.'
             }
@@ -138,6 +149,54 @@ impl Wall {
             println!();
         }
         println!();
+    }
+}
+
+impl Point {
+    fn mv(&self, dx: i32, dy: i32) -> Point {
+        Point {
+            x: self.x + dx,
+            y: self.y + dy,
+        }
+    }
+}
+
+impl Wall {
+    fn filled(&self, p: &Point) -> bool {
+        p == &Wall::SAND_SOURCE || self.rocks.contains(p) || self.sand.contains(p)
+    }
+
+    fn empty(&self, p: &Point) -> bool {
+        !self.filled(p)
+    }
+
+    fn add_sand(&mut self) -> Option<Point> {
+        let mut pos = Wall::SAND_SOURCE;
+
+        'tick: while pos.y <= self.y_abyss {
+            let candidates = vec![
+                pos.mv(0, 1),  // down
+                pos.mv(-1, 1), // down-left
+                pos.mv(1, 1),  // down-right
+            ];
+
+            for next in candidates {
+                if self.empty(&next) {
+                    pos = next;
+                    continue 'tick;
+                }
+            }
+
+            // Stuck!
+            break 'tick;
+        }
+
+        if pos.y < self.y_abyss {
+            self.sand.insert(pos);
+            Some(pos)
+        } else {
+            None
+        }
     }
 }
 
