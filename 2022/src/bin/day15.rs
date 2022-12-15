@@ -48,25 +48,15 @@ struct Beacon {
 fn part1(input: &str, yy: i32) -> usize {
     let pairs: Vec<(Sensor, Beacon)> = aoc::lines(input).map(parse_line).collect();
 
-    let relevant: Vec<(Sensor, Beacon)> = pairs
-        .iter()
-        .cloned()
-        .filter(|(s, b)| {
-            let d_cover = s.pos.distance(b.pos);
-            let dy = s.pos.distance(Pos::new(s.pos.x, yy));
-            dy <= d_cover
-        })
-        .collect();
-
     let mut coverage: HashSet<Pos> = HashSet::new();
 
-    for (s, b) in relevant {
+    for (s, b) in &pairs {
         let d_cover = s.pos.distance(b.pos);
-        let d_line = s.pos.distance(Pos::new(s.pos.x, yy));
-        let w_line = d_cover - d_line;
+        let dy = s.pos.distance(Pos::new(s.pos.x, yy));
+        let width = d_cover - dy;
 
         let x = s.pos.x;
-        for dx in 0..=w_line {
+        for dx in 0..=width {
             coverage.insert(Pos::new(x + dx, yy));
             coverage.insert(Pos::new(x - dx, yy));
         }
