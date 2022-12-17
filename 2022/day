@@ -7,11 +7,13 @@ BASEDIR=$(realpath "$(dirname "${BASH_SOURCE[0]}")")
 N=$(printf '%02d\n' "$1")
 
 input="${BASEDIR}/input/day${N}.txt"
+example="${BASEDIR}/input/day${N}-ex.txt"
 bin="${BASEDIR}/src/bin/day${N}.rs"
 
 template="${BASEDIR}/src/bin/dayXX.rs.tmpl"
 
 touch "${input}"
+touch "${example}"
 sed "s/dayXX/day${N}/g" "${template}" > "${bin}"
 
-"${EDITOR}" -- "${input}" "${bin}"
+"${EDITOR}" -- "${input}" "${example}" "${bin}"
