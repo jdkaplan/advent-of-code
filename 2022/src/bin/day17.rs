@@ -1,17 +1,17 @@
-use std::{convert::TryInto, fmt::Display, str::FromStr};
+use std::{collections::HashSet, convert::TryInto, fmt::Display, str::FromStr};
 
 use serde::{
     de::{value, IntoDeserializer},
     Deserialize,
 };
 
-// const INPUT: (&str, usize) = (include_str!("../../input/day17-ex.txt"), 10);
-const INPUT: (&str, usize) = (include_str!("../../input/day17.txt"), 2022);
+// const INPUT: &str = include_str!("../../input/day17-ex.txt");
+const INPUT: &str = include_str!("../../input/day17.txt");
 
 fn main() {
-    let (text, rock_count) = INPUT;
-    let jets = parse_input(text);
-    println!("{}", part1(jets, rock_count));
+    let jets = parse_input(INPUT);
+    println!("Part 1: {}", simulate(jets.clone(), 2022));
+    println!("Part 2: {}", simulate(jets, 1_000_000_000_000));
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Deserialize)]
@@ -47,6 +47,9 @@ enum Piece {
 }
 
 impl Piece {
+    // TODO(variant_count): std::mem::variant_count::<Piece>()
+    const NUM_SHAPES: usize = 5;
+
     fn generator() -> impl Iterator<Item = Self> {
         use Piece::*;
         [Dash, Plus, Corner, Line, Square].into_iter().cycle()
@@ -75,7 +78,6 @@ impl Piece {
                 "..#....",
             ],
             Piece::Square => vec![
-                ".......",
                 "..##...",
                 "..##...",
             ],
@@ -83,10 +85,7 @@ impl Piece {
 
         rows.iter()
             .rev() // Bottom-up!
-            .map(|row| {
-                let bools: Vec<bool> = row.chars().map(|c| c == '#').collect();
-                TryInto::<Row>::try_into(bools).unwrap()
-            })
+            .map(|s| Row::parse(s))
             .collect()
     }
 }
@@ -106,14 +105,23 @@ impl Block {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 struct Row([bool; 7]);
 
 impl Row {
     const EMPTY: Self = Self([false; 7]);
 
+    fn parse(s: &str) -> Self {
+        let bools: Vec<bool> = s.chars().map(|c| c == '#').collect();
+        bools.try_into().unwrap()
+    }
+
     fn is_empty(&self) -> bool {
         self.0.iter().all(|&v| !v)
+    }
+
+    fn is_full(&self) -> bool {
+        self.0.iter().all(|&v| v)
     }
 
     fn intersects(&self, other: &Self) -> bool {
@@ -173,27 +181,34 @@ impl From<Vec<bool>> for Row {
 #[derive(Debug, Clone)]
 struct Tower {
     grid: Vec<Row>,
+    rows_removed: usize,
+    pieces: usize,
 }
 
 impl Tower {
     fn new() -> Self {
-        Self { grid: vec![] }
+        Self {
+            grid: vec![],
+            rows_removed: 0,
+            pieces: 0,
+        }
     }
 
     fn height(&self) -> usize {
-        let empty_rows = self.grid.iter().rev().take_while(|r| r.is_empty()).count();
-        self.grid.len() - empty_rows
+        self.grid.len() + self.rows_removed
     }
 
-    fn spawn(&mut self, piece: Piece, jets: &mut impl Iterator<Item = Direction>) {
+    fn spawn(&mut self, piece: Piece, jets: &mut impl Iterator<Item = Direction>) -> usize {
+        let mut block = Block::new(piece);
+        let mut y = self.grid.len() + 3;
+
         self.grid.extend([Row::EMPTY; 4]);
 
-        let mut block = Block::new(piece);
-        let mut y = self.height() + 3;
-
+        let mut dj = 0;
         loop {
             // Push!
             let dir = jets.next().unwrap();
+            dj += 1;
             if let Some(new_block) = block.push(dir) {
                 if self.can_place(y, &new_block) {
                     block = new_block;
@@ -212,8 +227,26 @@ impl Tower {
         }
 
         self.place_at(y, block);
+        self.clean();
 
-        self.grid.truncate(self.height());
+        self.pieces += 1;
+        dj
+    }
+
+    fn clean(&mut self) {
+        // Garbage-collect empty rows.
+        let saved = self.grid.len();
+        let empty = self.grid.iter().rev().take_while(|r| r.is_empty()).count();
+        self.grid.truncate(saved - empty);
+    }
+
+    fn top(&self) -> Vec<Row> {
+        self.grid
+            .iter()
+            .cloned()
+            .rev()
+            .take_while(|r| !r.is_full())
+            .collect()
     }
 
     fn can_place(&self, y: usize, block: &Block) -> bool {
@@ -229,24 +262,127 @@ impl Tower {
     }
 }
 
-fn part1(jets: Vec<Direction>, rock_count: usize) -> usize {
-    let pieces = Piece::generator().take(rock_count);
-    let mut jets = jets.into_iter().cycle();
+fn simulate(jets: Vec<Direction>, rock_count: usize) -> usize {
+    let (base_tower, loop_state) = find_loop(jets.clone());
+    let template = run_loop(&base_tower, jets.clone(), &loop_state);
 
-    let mut tower = Tower::new();
+    let mut pieces_used = base_tower.pieces;
+    let mut jet_idx = loop_state.jet;
+    let mut tower_height = base_tower.height();
 
-    for piece in pieces {
-        tower.spawn(piece, &mut jets);
-        // tower.render();
+    while pieces_used + template.pieces < rock_count {
+        pieces_used += template.pieces;
+        tower_height += template.height;
+        jet_idx += template.jets % jets.len();
     }
 
-    tower.height()
+    let remaining_rocks = rock_count - pieces_used;
+    let leftover_pieces = Piece::generator()
+        .skip(pieces_used % Piece::NUM_SHAPES)
+        .take(remaining_rocks);
+    let leftover_jets = jets.iter().cloned().skip(jet_idx);
+
+    let leftover_height = run(&base_tower, leftover_pieces, leftover_jets);
+
+    tower_height + leftover_height
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct State {
+    piece: Piece,
+    jet: usize,
+    top: Vec<Row>,
+}
+
+fn find_loop(jets: Vec<Direction>) -> (Tower, State) {
+    let mut pieces = Piece::generator();
+    let mut jets_iter = jets.iter().cloned().cycle();
+    let mut tower = Tower::new();
+
+    let mut states: HashSet<State> = HashSet::new();
+    let mut jets_used = 0;
+
+    let mut loop_start: Option<(State, usize)> = None;
+
+    for piece in &mut pieces {
+        let state = State {
+            piece,
+            jet: jets_used % jets.len(),
+            top: tower.top(),
+        };
+        let looped = !states.insert(state.clone());
+        if looped {
+            loop_start = Some((state, tower.height()));
+            break;
+        }
+
+        let dj = tower.spawn(piece, &mut jets_iter);
+        jets_used += dj;
+    }
+
+    (tower, loop_start.unwrap().0)
+}
+
+#[derive(Debug, Copy, Clone)]
+struct LoopInfo {
+    pieces: usize,
+    jets: usize,
+    height: usize,
+}
+
+fn run_loop(base_tower: &Tower, jets: Vec<Direction>, loop_start: &State) -> LoopInfo {
+    let mut tower = base_tower.clone();
+
+    let pieces = Piece::generator().skip_while(|&p| p != loop_start.piece);
+
+    let num_jets = jets.len();
+    let mut jets = jets.iter().cloned().cycle().skip(loop_start.jet); // off-by-one?
+    let mut jets_used = loop_start.jet;
+    let mut seen = 0;
+
+    for (pieces_used, piece) in pieces.enumerate() {
+        let state = State {
+            piece,
+            jet: jets_used % num_jets,
+            top: tower.top(),
+        };
+        seen += i32::from(state == *loop_start);
+        if seen == 2 {
+            return LoopInfo {
+                pieces: pieces_used,
+                jets: jets_used - loop_start.jet,
+                height: tower.height() - base_tower.height(),
+            };
+        }
+
+        let dj = tower.spawn(piece, &mut jets);
+        jets_used += dj;
+    }
+
+    unreachable!();
+}
+
+fn run(
+    base_tower: &Tower,
+    pieces: impl Iterator<Item = Piece>,
+    mut jets: impl Iterator<Item = Direction>,
+) -> usize {
+    let base_height = base_tower.height();
+    let mut tower: Tower = base_tower.clone();
+    for piece in pieces {
+        tower.spawn(piece, &mut jets);
+    }
+    tower.height() - base_height
 }
 
 impl Tower {
+    #[allow(dead_code)]
     fn render(&self) {
+        // TODO(int_log): self.0.checked_log10().unwrap_or(0) + 1
+        let width = format!("{}", self.height()).chars().count();
+
         for (i, row) in self.grid.iter().enumerate().rev() {
-            println!("{} {}", i, row);
+            println!("{: >width$} {}", i + self.rows_removed, row);
         }
         println!("  -------");
     }
