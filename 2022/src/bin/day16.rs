@@ -8,13 +8,10 @@ use regex::Regex;
 const INPUT: &str = include_str!("../../input/day16.txt");
 
 fn main() {
-    println!("{}", part1(INPUT));
-}
+    let graph = Graph::parse(INPUT);
 
-fn part1(input: &str) -> u32 {
-    let graph = Graph::parse(input);
-
-    graph.max_flow(30)
+    println!("{}", graph.max_flow(30).flow);
+    println!("{}", graph.max_flow_with_an_elephriend(26));
 }
 
 // I really want this to be Copy, so here's a hack to avoid strings.
@@ -206,7 +203,7 @@ impl Ord for State {
 }
 
 impl Graph {
-    fn max_flow(&self, total_minutes: usize) -> Flow {
+    fn max_flow(&self, total_minutes: usize) -> State {
         let paths = {
             let nodes: Vec<Valve> = self.valves.keys().cloned().collect();
             let mut edges: HashMap<(Valve, Valve), u64> = HashMap::new();
@@ -256,7 +253,24 @@ impl Graph {
             }
         }
 
-        best.flow
+        best
+    }
+
+    fn max_flow_with_an_elephriend(&self, total_minutes: usize) -> Flow {
+        let best = self.max_flow(total_minutes);
+
+        let elegraph = {
+            let mut g = self.clone();
+            for action in best.path.0 {
+                if let Action::Open(v) = action {
+                    g.valves.insert(v, 0);
+                }
+            }
+            g
+        };
+        let elebest = elegraph.max_flow(total_minutes);
+
+        best.flow + elebest.flow
     }
 }
 
