@@ -181,7 +181,6 @@ impl From<Vec<bool>> for Row {
 #[derive(Debug, Clone)]
 struct Tower {
     grid: Vec<Row>,
-    rows_removed: usize,
     pieces: usize,
 }
 
@@ -189,13 +188,12 @@ impl Tower {
     fn new() -> Self {
         Self {
             grid: vec![],
-            rows_removed: 0,
             pieces: 0,
         }
     }
 
     fn height(&self) -> usize {
-        self.grid.len() + self.rows_removed
+        self.grid.len()
     }
 
     fn spawn(&mut self, piece: Piece, jets: &mut impl Iterator<Item = Direction>) -> usize {
@@ -204,11 +202,11 @@ impl Tower {
 
         self.grid.extend([Row::EMPTY; 4]);
 
-        let mut dj = 0;
+        let mut jets_used = 0;
         loop {
             // Push!
             let dir = jets.next().unwrap();
-            dj += 1;
+            jets_used += 1;
             if let Some(new_block) = block.push(dir) {
                 if self.can_place(y, &new_block) {
                     block = new_block;
@@ -230,7 +228,7 @@ impl Tower {
         self.clean();
 
         self.pieces += 1;
-        dj
+        jets_used
     }
 
     fn clean(&mut self) {
@@ -316,8 +314,7 @@ fn find_loop(jets: Vec<Direction>) -> (Tower, State) {
             break;
         }
 
-        let dj = tower.spawn(piece, &mut jets_iter);
-        jets_used += dj;
+        jets_used += tower.spawn(piece, &mut jets_iter);
     }
 
     (tower, loop_start.unwrap().0)
@@ -355,8 +352,7 @@ fn run_loop(base_tower: &Tower, jets: Vec<Direction>, loop_start: &State) -> Loo
             };
         }
 
-        let dj = tower.spawn(piece, &mut jets);
-        jets_used += dj;
+        jets_used += tower.spawn(piece, &mut jets);
     }
 
     unreachable!();
@@ -382,7 +378,7 @@ impl Tower {
         let width = format!("{}", self.height()).chars().count();
 
         for (i, row) in self.grid.iter().enumerate().rev() {
-            println!("{: >width$} {}", i + self.rows_removed, row);
+            println!("{: >width$} {}", i, row);
         }
         println!("  -------");
     }
