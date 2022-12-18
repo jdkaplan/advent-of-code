@@ -259,6 +259,9 @@ impl Graph {
     fn max_flow_with_an_elephriend(&self, total_minutes: usize) -> Flow {
         let best = self.max_flow(total_minutes);
 
+        // The prompt suggests that I might be able to do better by myself. So, a wild guess:
+        //
+        // What if the elephant just opens up the best valves I wouldn't have time for?
         let elegraph = {
             let mut g = self.clone();
             for action in best.path.0 {
