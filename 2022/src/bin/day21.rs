@@ -5,6 +5,7 @@ const INPUT: &str = include_str!("../../input/day21.txt");
 fn main() {
     let monkeys = parse(INPUT);
     println!("{:?}", part1(monkeys.clone()));
+    println!("{:?}", part2(monkeys));
 }
 
 fn parse(input: &str) -> HashMap<Name, Expr> {
@@ -133,5 +134,152 @@ impl Evaluator {
         }
 
         self.memo[&name]
+    }
+}
+
+fn part2(mut monkeys: HashMap<Name, Expr>) -> u64 {
+    let human: Name = "humn".into();
+
+    monkeys.remove(&human);
+
+    let dependents: usize = monkeys
+        .iter()
+        .filter_map(|(_name, expr)| expr.bindings().iter().position(|b| b == "humn"))
+        .count();
+    assert_eq!(dependents, 1);
+
+    let names = monkeys["root"].bindings();
+    assert_eq!(names.len(), 2);
+
+    let mut a = Tree::build(Expr::Monkey(names[0].clone()), &monkeys);
+    let mut b = Tree::build(Expr::Monkey(names[1].clone()), &monkeys);
+
+    let leaf = Tree::Monkey(human.clone());
+    while a != leaf {
+        (a, b) = Tree::reroot(a, b, &human);
+    }
+
+    b.value()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Tree {
+    Const(u64),
+    Monkey(Name),
+    BinOp(Op, Box<Tree>, Box<Tree>),
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+enum Op {
+    Add,
+    Sub,
+    Mul,
+    Div,
+}
+
+impl Tree {
+    fn build(expr: Expr, monkeys: &HashMap<Name, Expr>) -> Self {
+        match expr {
+            Expr::Const(v) => Tree::Const(v),
+            Expr::Monkey(m) => {
+                if let Some(e) = monkeys.get(&m) {
+                    Tree::build(e.clone(), monkeys)
+                } else {
+                    Tree::Monkey(m)
+                }
+            }
+            Expr::Add(l, r) => Tree::BinOp(
+                Op::Add,
+                Tree::build(*l, monkeys).into(),
+                Tree::build(*r, monkeys).into(),
+            ),
+            Expr::Sub(l, r) => Tree::BinOp(
+                Op::Sub,
+                Tree::build(*l, monkeys).into(),
+                Tree::build(*r, monkeys).into(),
+            ),
+            Expr::Mul(l, r) => Tree::BinOp(
+                Op::Mul,
+                Tree::build(*l, monkeys).into(),
+                Tree::build(*r, monkeys).into(),
+            ),
+            Expr::Div(l, r) => Tree::BinOp(
+                Op::Div,
+                Tree::build(*l, monkeys).into(),
+                Tree::build(*r, monkeys).into(),
+            ),
+        }
+    }
+
+    fn contains(&self, name: &Name) -> bool {
+        match self {
+            Tree::Const(_) => false,
+            Tree::Monkey(m) => m == name,
+            Tree::BinOp(_, l, r) => l.contains(name) || r.contains(name),
+        }
+    }
+
+    fn binary(op: Op, l: Self, r: Self) -> Self {
+        Tree::BinOp(op, Box::new(l), Box::new(r))
+    }
+
+    fn reroot(a: Self, b: Self, name: &Name) -> (Self, Self) {
+        assert!(a.contains(name));
+
+        match a {
+            Tree::Const(_) => todo!(),
+            Tree::Monkey(_) => todo!(),
+            Tree::BinOp(op, l, r) => {
+                let (aa, bb) = if l.contains(name) {
+                    // L op r == b
+                    match op {
+                        // L + r == b
+                        // L == b - r
+                        Op::Add => (l, Tree::binary(Op::Sub, b, *r)),
+                        // L - r == b
+                        // L == b + r
+                        Op::Sub => (l, Tree::binary(Op::Add, b, *r)),
+                        // L * r == b
+                        // L == b / r
+                        Op::Mul => (l, Tree::binary(Op::Div, b, *r)),
+                        // L / r == b
+                        // L == b * r
+                        Op::Div => (l, Tree::binary(Op::Mul, b, *r)),
+                    }
+                } else if r.contains(name) {
+                    // l op R == b
+                    match op {
+                        // l + R == b
+                        // R == b - l
+                        Op::Add => (r, Tree::binary(Op::Sub, b, *l)),
+                        // l - R == b
+                        // R == l - b
+                        Op::Sub => (r, Tree::binary(Op::Sub, *l, b)),
+                        // l * R == b
+                        // R == b / l
+                        Op::Mul => (r, Tree::binary(Op::Div, b, *l)),
+                        // l / R == b
+                        // R == l / b
+                        Op::Div => (r, Tree::binary(Op::Div, *l, b)),
+                    }
+                } else {
+                    todo!()
+                };
+                (*aa, bb)
+            }
+        }
+    }
+
+    fn value(&self) -> u64 {
+        match self {
+            Tree::Const(v) => *v,
+            Tree::Monkey(_) => todo!(),
+            Tree::BinOp(op, l, r) => match op {
+                Op::Add => l.value() + r.value(),
+                Op::Sub => l.value() - r.value(),
+                Op::Mul => l.value() * r.value(),
+                Op::Div => l.value() / r.value(),
+            },
+        }
     }
 }
