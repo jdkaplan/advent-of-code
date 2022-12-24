@@ -80,7 +80,7 @@ impl Decrypter {
             // i | [x, y, z, a, b, c]
             assert_eq!(i, m);
 
-            let n = delta(n, self.ilen);
+            let n = imod(n, self.ptr.len());
             self.ptr.rotate_left(n);
             self.ptr.push_front(m);
         } else {
@@ -92,18 +92,14 @@ impl Decrypter {
             // [x, y, z, a, b, c] | i
             assert_eq!(i, m);
 
-            let n = delta(n, self.ilen);
+            let n = imod(n, self.ptr.len());
             self.ptr.rotate_right(n);
             self.ptr.push_back(m);
         }
     }
 }
 
-fn delta(n: i64, len: i64) -> usize {
-    let n = n.abs();
-    // It takes n-1 swaps to get back to where we started, so treat these as extra "hops" over the
-    // original position.
-    let skips = n / (len - 1);
-    let extra = n % len;
-    ((skips + extra) % len).try_into().unwrap()
+fn imod(n: i64, m: usize) -> usize {
+    let n: usize = n.abs().try_into().unwrap();
+    n % m
 }
