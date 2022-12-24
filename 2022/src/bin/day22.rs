@@ -153,6 +153,7 @@ impl Move {
             }
             mv = !mv;
         }
+        assert!(chars.peek().is_none());
         moves
     }
 
@@ -235,10 +236,10 @@ fn score(r: usize, c: usize, h: Heading) -> u64 {
     let c: u64 = (c + 1).try_into().unwrap();
 
     let h = match h {
-        Heading::North => 3,
         Heading::East => 0,
         Heading::South => 1,
         Heading::West => 2,
+        Heading::North => 3,
     };
 
     1000 * r + 4 * c + h
@@ -282,21 +283,19 @@ impl Range {
         assert_eq!(walkway[0], (offset, Tile::Open));
 
         if delta < 0 {
+            // Un-rotate once to put the start cell back on the front.
             walkway.reverse();
+            walkway.rotate_right(1);
         };
+        assert_eq!(walkway[0], (offset, Tile::Open));
 
         let to_walk: usize = delta.abs().try_into().unwrap();
-
-        println!("{} {} {}", offset, delta, to_walk);
 
         let dest = walkway
             .iter()
             .cloned()
             .cycle()
             .take(to_walk + 1) // Consume the start tile
-            .inspect(|(i, t)| {
-                println!("{} {:?}", i, t);
-            })
             .take_while(|&(_i, t)| t == Tile::Open)
             .last();
 
