@@ -5,7 +5,7 @@ const INPUT: &str = include_str!("../../input/day23.txt");
 fn main() {
     let grove = Grove::parse(INPUT);
 
-    println!("{}", part1(grove));
+    simulate(grove);
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -144,9 +144,8 @@ struct Move {
     to: RC,
 }
 
-fn part1(mut grove: Grove) -> usize {
-    println!("== Initial State ==\n{}", grove);
-    for round in 0..10 {
+fn simulate(mut grove: Grove) {
+    for round in 0.. {
         let mut proposals: HashMap<RC, Vec<RC>> = HashMap::new();
         for &src in &grove.grid {
             let Some(dest) = grove.propose(src, round) else { continue };
@@ -169,12 +168,19 @@ fn part1(mut grove: Grove) -> usize {
             });
         }
 
+        let done = moves.is_empty();
+
         grove = grove.apply(moves);
 
-        println!("== End of Round {} ==\n{}", round + 1, grove);
-    }
+        if round == 9 {
+            println!("Part 1: {}", grove.empty_tiles());
+        }
 
-    grove.empty_tiles()
+        if done {
+            println!("Part 2: {}", round + 1);
+            break;
+        }
+    }
 }
 
 impl Grove {
