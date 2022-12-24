@@ -1,10 +1,14 @@
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
-const INPUT: &str = include_str!("../../input/day23.txt");
+const INPUT: &str = include_str!("../../input/day24.txt");
 
 fn main() {
     let valley = Valley::parse(INPUT);
-    println!("{}", part1(valley));
+
+    let t_goal = part1(valley.clone());
+
+    println!("{}", t_goal);
+    println!("{}", part2(valley, t_goal));
 }
 
 type RC = (usize, usize);
@@ -199,14 +203,27 @@ impl Ord for State {
 }
 
 fn part1(valley: Valley) -> usize {
+    let start = valley.start;
+    let goal = valley.goal;
+    search(valley, 0, start, goal)
+}
+
+fn part2(valley: Valley, t_goal: usize) -> usize {
+    let start = valley.start;
+    let goal = valley.goal;
+    let t_start = search(valley.clone(), t_goal, goal, start);
+    dbg!(t_start);
+
+    search(valley, t_start, start, goal)
+}
+
+fn search(valley: Valley, start_minutes: usize, start_loc: RC, goal: RC) -> usize {
     let mut queue: BinaryHeap<State> = BinaryHeap::new();
     let mut expanded: HashSet<State> = HashSet::new();
 
-    let goal = valley.goal;
-
     let heuristic = move |loc: RC| -> usize {
-        let dr = goal.0 - loc.0;
-        let dc = goal.1 - loc.1;
+        let dr = goal.0.abs_diff(loc.0);
+        let dc = goal.1.abs_diff(loc.1);
         dr + dc
     };
 
@@ -225,8 +242,8 @@ fn part1(valley: Valley) -> usize {
     };
 
     let start = State {
-        minutes: 0,
-        loc: valley.start,
+        minutes: start_minutes,
+        loc: start_loc,
         heuristic: 0,
     };
     queue.push(start);
