@@ -5,7 +5,8 @@ const INPUT: &str = include_str!("../../input/day22.txt");
 fn main() {
     let (board, moves) = parse(INPUT);
 
-    println!("{}", part1(board, moves));
+    println!("{}", part1(board.clone(), moves.clone()));
+    println!("{}", part2(board, moves));
 }
 
 fn parse(input: &str) -> (Board, Vec<Move>) {
@@ -212,6 +213,16 @@ impl Heading {
             West => North,
         }
     }
+
+    fn flip(&self) -> Self {
+        use Heading::*;
+        match self {
+            North => South,
+            East => West,
+            South => North,
+            West => East,
+        }
+    }
 }
 
 fn part1(board: Board, moves: Vec<Move>) -> u64 {
@@ -270,28 +281,10 @@ impl Board {
 
 impl Range {
     fn walk(&self, offset: usize, delta: i64) -> usize {
-        let mut walkway: Vec<(usize, Tile)> = self
-            .tiles
-            .iter()
-            .cloned()
-            .enumerate()
-            .map(|(i, t)| (i + self.start, t))
-            .collect();
-
-        // Walkway starts at current position.
-        walkway.rotate_left(offset - self.start);
-        assert_eq!(walkway[0], (offset, Tile::Open));
-
-        if delta < 0 {
-            // Un-rotate once to put the start cell back on the front.
-            walkway.reverse();
-            walkway.rotate_right(1);
-        };
-        assert_eq!(walkway[0], (offset, Tile::Open));
-
         let to_walk: usize = delta.abs().try_into().unwrap();
 
-        let dest = walkway
+        let dest = self
+            .walkway(offset, delta < 0)
             .iter()
             .cloned()
             .cycle()
@@ -303,5 +296,137 @@ impl Range {
             Some((i, _tile)) => i,
             None => offset, // Didn't move
         }
+    }
+
+    fn walkway(&self, offset: usize, reverse: bool) -> Vec<(usize, Tile)> {
+        let mut walkway: Vec<(usize, Tile)> = self
+            .tiles
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(i, t)| (i + self.start, t))
+            .collect();
+
+        if reverse {
+            walkway.reverse();
+            walkway.drain(0..(self.end() - offset));
+        } else {
+            // Walkway starts at current position and _does not_ wrap.
+            walkway.drain(0..(offset - self.start));
+        }
+        assert_eq!(walkway[0], (offset, Tile::Open));
+
+        walkway
+    }
+}
+
+fn part2(board: Board, moves: Vec<Move>) -> u64 {
+    let mut r = 0;
+    let mut c = board.rows[r].start;
+    let mut h = Heading::East;
+
+    for mv in moves {
+        match mv {
+            Move::Left => h = h.turn_left(),
+            Move::Right => h = h.turn_right(),
+            Move::Forward(mut steps) => {
+                'walk: while steps > 0 {
+                    // Finish current face
+                    let walkway = board.walkway(r, c, h);
+
+                    let mut ww = walkway.iter();
+                    // Consume the current tile.
+                    assert_eq!(ww.next(), Some(&(r, c, Tile::Open)));
+
+                    'face: while steps > 0 {
+                        let Some(&(rr, cc, t)) = ww.next() else {
+                            break 'face;
+                        };
+
+                        if t == Tile::Wall {
+                            break 'walk;
+                        }
+
+                        (r, c) = (rr, cc);
+                        steps -= 1;
+                    }
+
+                    // Teleport to a new face
+                    if steps > 0 {
+                        let (rr, cc, hh, t) = board.faceroll(r, c, h);
+                        {
+                            let (rrr, ccc, hhh, _) = board.faceroll(rr, cc, hh.flip());
+                            assert_eq!((r, c, h), (rrr, ccc, hhh.flip()));
+                        }
+
+                        if t == Tile::Wall {
+                            break 'walk;
+                        }
+
+                        (r, c, h) = (rr, cc, hh);
+                        steps -= 1;
+                    }
+                }
+            }
+        }
+    }
+
+    score(r, c, h)
+}
+
+impl Board {
+    fn walkway(&self, r: usize, c: usize, h: Heading) -> Vec<(usize, usize, Tile)> {
+        use Heading::*;
+
+        match h {
+            North => self.cols[c]
+                .walkway(r, true)
+                .iter()
+                .map(|&(r, t)| (r, c, t))
+                .collect(),
+            South => self.cols[c]
+                .walkway(r, false)
+                .iter()
+                .map(|&(r, t)| (r, c, t))
+                .collect(),
+
+            East => self.rows[r]
+                .walkway(c, false)
+                .iter()
+                .map(|&(c, t)| (r, c, t))
+                .collect(),
+            West => self.rows[r]
+                .walkway(c, true)
+                .iter()
+                .map(|&(c, t)| (r, c, t))
+                .collect(),
+        }
+    }
+
+    fn faceroll(&self, r: usize, c: usize, h: Heading) -> (usize, usize, Heading, Tile) {
+        use Heading::*;
+
+        // In order of appearance...
+        let (rr, cc, hh) = match (r, c, h) {
+            (0..=49, 149, East) => (149 - r, 99, West),     // B -> D
+            (0..=49, 50, West) => (149 - r, 0, East),       // A -> E
+            (100..=149, 0, West) => (149 - r, 50, East),    // E -> A
+            (50..=99, 50, West) => (100, r - 50, South),    // C -> E
+            (100, 0..=49, North) => (c + 50, 50, East),     // E -> C
+            (0, 50..=99, North) => (c + 100, 0, East),      // A -> F
+            (199, 0..=49, South) => (0, c + 100, South),    // F -> B
+            (150..=199, 49, East) => (149, r - 100, North), // F -> D
+
+            (0, 100..=149, North) => (199, c - 100, North), // B -> F
+            (149, 50..=99, South) => (c + 100, 49, West),   // D -> F
+            (150..=199, 0, West) => (0, r - 100, South),    // F -> A
+            (50..=99, 99, East) => (49, r + 50, North),     // C -> B
+            (100..=149, 99, East) => (149 - r, 149, West),  // D -> B
+            (49, 100..=149, South) => (c - 50, 99, West),   // B -> C
+            other => todo!("{:?}", other),
+        };
+
+        let t = self.rows[rr].at(cc).unwrap();
+        (rr, cc, hh, t)
     }
 }
