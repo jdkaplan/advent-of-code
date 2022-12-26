@@ -13,7 +13,8 @@ const INPUT: &str = include_str!("../../input/day19.txt");
 
 fn main() {
     let blueprints: Vec<Blueprint> = aoc::lines(INPUT).map(Blueprint::parse).collect();
-    println!("{}", part1(blueprints));
+    println!("{}", part1(&blueprints));
+    println!("{}", part2(&blueprints[..3]));
 }
 
 #[derive(Debug, Clone)]
@@ -92,15 +93,23 @@ impl FromStr for Resource {
     }
 }
 
-fn part1(blueprints: Vec<Blueprint>) -> u64 {
+fn part1(blueprints: &[Blueprint]) -> u64 {
     blueprints
         .iter()
         .cloned()
-        .map(|bp| bp.id() * quality(bp, 24))
+        .map(|bp| bp.id() * geodes_mined(bp, 24))
         .sum()
 }
 
-fn quality(blueprint: Blueprint, total_minutes: u64) -> u64 {
+fn part2(blueprints: &[Blueprint]) -> u64 {
+    blueprints
+        .iter()
+        .cloned()
+        .map(|bp| geodes_mined(bp, 32))
+        .product()
+}
+
+fn geodes_mined(blueprint: Blueprint, total_minutes: u64) -> u64 {
     dbg!(&blueprint.id);
 
     let factory = Factory::new(blueprint);
