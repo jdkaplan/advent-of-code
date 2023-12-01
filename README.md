@@ -8,9 +8,9 @@ I like solving the [Advent of Code](https://adventofcode.com/) challenges every 
 - 2020: Elixir
 - 2021: Go
 - 2022: Rust (Again! v1.65, 2021 edition)
+- 2023: Nim
 
 Languages I'd like to use for the future or TODO years:
 - J (or other APL-like)
 - Haskell
 - Zig
-- Nim
