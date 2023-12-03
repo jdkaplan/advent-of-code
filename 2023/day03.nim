@@ -1,60 +1,18 @@
 import std/sets
 import std/enumerate
 import std/tables
+import std/sequtils
 import std/strutils
 
 const digits = "0123456789"
 
-type Coord = tuple
+func as_int(c: char): int = c.int - '0'.int
+
+type Point = tuple
   r: int
   c: int
 
-type Slice = tuple
-  lo: Coord
-  hi: Coord
-
-type Grid = object
-  rows: int
-  cols: int
-  table: Table[Coord, char]
-  numbers: seq[Slice]
-  gears: seq[Coord]
-
-proc parseGrid(text: string): Grid =
-  result.table = initTable[Coord, char]()
-
-  let lines = text.strip.splitLines()
-  result.rows = lines.len
-  result.cols = lines[0].len
-
-  for (r, line) in enumerate(lines):
-    var num: Slice
-    var in_num = false
-
-    for (c, sym) in enumerate(line):
-      result.table[(r, c)] = sym
-
-      if sym == '*':
-        result.gears.add((r, c))
-
-      if sym in digits:
-        if in_num:
-          num.hi = (r, c)
-        else:
-          num.lo = (r, c)
-          num.hi = (r, c)
-        in_num = true
-        continue
-
-      if in_num:
-        result.numbers.add(num)
-        in_num = false
-
-    if in_num:
-      result.numbers.add(num)
-
-
-func neighbors(p: Coord): seq[Coord] =
+func neighbors(p: Point): seq[Point] =
   for (dr, dc) in [
     (-1, -1),
     (-1, 0),
@@ -68,25 +26,89 @@ func neighbors(p: Coord): seq[Coord] =
   ]:
     result.add((p.r + dr, p.c + dc))
 
-proc grid_sym(grid: Grid, p: Coord): char =
-  if 0 <= p.r and p.r < grid.rows and 0 <= p.c and p.c < grid.cols:
+type Slice = tuple
+  lo: Point
+  hi: Point
+
+func row_range(s: Slice): seq[int] =
+  toSeq(s.lo.r .. s.hi.r)
+
+func col_range(s: Slice): seq[int] =
+  toSeq(s.lo.c .. s.hi.c)
+
+func contains(s: Slice, p: Point): bool =
+  p.r in s.row_range and p.c in s.col_range
+
+type Part = tuple
+  id: int
+  slice: Slice
+
+func contains(part: Part, p: Point): bool =
+  part.slice.contains(p)
+
+type Grid = object
+  rows: int
+  cols: int
+  table: Table[Point, char]
+  parts: seq[Part]
+  gears: seq[Point]
+
+func parseGrid(text: string): Grid =
+  result.table = initTable[Point, char]()
+
+  let lines = text.strip.splitLines()
+  result.rows = lines.len
+  result.cols = lines[0].len
+
+  for (r, line) in enumerate(lines):
+    var part: Part
+    var in_num = false
+
+    for (c, sym) in enumerate(line):
+      result.table[(r, c)] = sym
+
+      if sym == '*':
+        result.gears.add((r, c))
+
+      if sym in digits:
+        if in_num:
+          part.slice.hi = (r, c)
+          part.id = 10 * part.id + sym.as_int
+        else:
+          part.slice.lo = (r, c)
+          part.slice.hi = (r, c)
+          part.id = sym.as_int
+        in_num = true
+        continue
+
+      if in_num:
+        result.parts.add(part)
+        in_num = false
+
+    if in_num:
+      result.parts.add(part)
+
+func symbol(grid: Grid, p: Point): char =
+  if p.r in 0 ..< grid.rows and p.c in 0 ..< grid.cols:
     grid.table[p]
   else:
     '.'
 
-proc grid_slice(grid: Grid, s: Slice): string =
-  for r in s.lo.r .. s.hi.r:
-    for c in s.lo.c .. s.hi.c:
-      result.add(grid_sym(grid, (r, c)))
-
-proc has_neighbor(grid: Grid, s: Slice): bool =
+func text(grid: Grid, s: Slice): string =
+  assert(s.lo.r == s.hi.r)
   let r = s.lo.r
-  for c in s.lo.c .. s.hi.c:
+
+  for c in s.col_range:
+    result.add(grid.symbol((r, c)))
+
+func is_attached(part: Part, grid: Grid): bool =
+  let r = part.slice.lo.r
+  for c in part.slice.col_range:
     for n in neighbors((r, c)):
-      if n.r == r and s.lo.c <= n.c and n.c <= s.hi.c:
+      if part.contains(n):
         continue
 
-      let nsym = grid_sym(grid, n)
+      let nsym = grid.symbol(n)
       if nsym != '.':
         return true
   return false
@@ -95,20 +117,20 @@ proc part1(): int =
   let text = readFile("input/day03.txt")
   let grid = parseGrid(text)
 
-  for num in grid.numbers:
-    assert(num.lo.r == num.hi.r)
+  for part in grid.parts:
+    assert(part.slice.lo.r == part.slice.hi.r)
 
-    if grid.has_neighbor(num):
-      result += grid_slice(grid, num).parseInt
+    if part.is_attached(grid):
+      result += grid.text(part.slice).parseInt
 
-proc get_containing(grid: Grid, p: Coord): Slice =
-  for num in grid.numbers:
-    if p.r == num.lo.r and num.lo.c <= p.c and p.c <= num.hi.c:
-      return num
+func get_containing(grid: Grid, p: Point): Part =
+  for part in grid.parts:
+    if part.contains(p):
+      return part
 
-proc gear_neighbors(grid: Grid, p: Coord): HashSet[Slice] =
+func gear_neighbors(grid: Grid, p: Point): HashSet[Part] =
   for n in p.neighbors:
-    if grid.grid_sym(n)in digits:
+    if grid.symbol(n) in digits:
       result.incl(grid.get_containing(n))
 
 proc part2(): int =
@@ -116,13 +138,13 @@ proc part2(): int =
   let grid = parseGrid(text)
 
   for gear in grid.gears:
-    let nums = grid.gear_neighbors(gear)
-    if nums.len != 2:
+    let parts = grid.gear_neighbors(gear)
+    if parts.len != 2:
       continue
 
     var ratio = 1
-    for s in nums:
-      ratio *= grid.grid_slice(s).parseInt
+    for part in parts:
+      ratio *= grid.text(part.slice).parseInt
 
     result += ratio
 
