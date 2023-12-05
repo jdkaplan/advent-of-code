@@ -95,52 +95,54 @@ func newRange(start: int, length: int): Range =
 func empty(r: Range): bool =
   r.lo > r.hi
 
-func intersect(a: Range, b: Range): Range =
-  (max(a.lo, b.lo), min(a.hi, b.hi))
+type Split = tuple
+  prefix: Range
+  inside: Range
+  suffix: Range
 
-proc lookup(r: Remap, src: Range): Range =
+func split(a: Range, b: Range): Split =
+  let lo = max(a.lo, b.lo)
+  let hi = min(a.hi, b.hi)
+
+  result.prefix = (a.lo, lo - 1)
+  result.inside = (lo, hi)
+  result.suffix = (hi + 1, a.hi)
+
+func lookup(r: Remap, src: Range): Range =
   let delta = r.dst_start - r.src_start
   (src.lo + delta, src.hi + delta)
 
-proc lookup(m: Map, src: Range): seq[Range] =
+func lookup(m: Map, src: Range): seq[Range] =
   var unmapped = @[src]
 
   for remap in m.remaps:
     var still_unmapped: seq[Range]
     for src in unmapped:
       let rr = newRange(remap.src_start, remap.length)
-      if src.intersect(rr).empty:
+      let split = src.split(rr)
+
+      if split.inside.empty:
         still_unmapped.add src
         continue
 
-      let dn = src.lo
-      let lo = max(src.lo, rr.lo)
-      let hi = min(src.hi, rr.hi)
-      let up = src.hi
+      result.add remap.lookup(split.inside)
 
-      let prefix = (dn, lo - 1)
-      let inside = (lo, hi)
-      let suffix = (hi + 1, up)
+      if not split.prefix.empty:
+        still_unmapped.add split.prefix
 
-      if not prefix.empty:
-        still_unmapped.add prefix
-
-      if not suffix.empty:
-        still_unmapped.add suffix
-
-      if not inside.empty:
-        result.add remap.lookup(inside)
+      if not split.suffix.empty:
+        still_unmapped.add split.suffix
 
     unmapped = still_unmapped
 
   for src in unmapped:
     result.add src
 
-proc lookup(m: Map, srcs: seq[Range]): seq[Range] =
+func lookup(m: Map, srcs: seq[Range]): seq[Range] =
   for src in srcs:
     result.add m.lookup(src)
 
-proc lookup(a: Almanac, dst: string, seeds: seq[Range]): seq[Range] =
+func lookup(a: Almanac, dst: string, seeds: seq[Range]): seq[Range] =
   var map = a.mapsBySrc["seed"]
   var src = seeds
 
