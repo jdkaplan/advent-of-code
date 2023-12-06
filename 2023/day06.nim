@@ -55,6 +55,23 @@ proc part1(): int =
 
   result = 1
   for race in races:
-    result *= dbg(race.win_count)
+    result *= race.win_count
+
+func parseRaceUnkerned(text: string): Race =
+  let lines = text.strip.splitLines
+  let times = lines[0].splitWhitespace
+  let distances = lines[1].splitWhitespace
+  assert(times[0] == "Time:")
+  assert(distances[0] == "Distance:")
+
+  let time = times[1..^1].join("").parseInt
+  let distance = distances[1..^1].join("").parseInt
+  (time, distance)
+
+proc part2(): int =
+  let text = readFile("input/day06.txt")
+  let race = parseRaceUnkerned(text)
+  race.win_count
 
 echo part1()
+echo part2()
