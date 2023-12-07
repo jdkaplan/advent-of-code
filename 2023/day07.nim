@@ -36,15 +36,16 @@ func parseHand(text: string): Hand =
 func parseHands(text: string): seq[Hand] =
   text.strip.splitLines.map(parseHand)
 
-const five = 7
-const four = 6
-const full = 5
-const three = 4
-const twoPair = 3
-const pair = 2
-const high = 1
+type Strength {.pure.} = enum
+  High
+  Pair
+  TwoPair
+  Three
+  Full
+  Four
+  Five
 
-func strength(hand: Hand): int =
+func strength(hand: Hand): Strength =
   let count = newCountTable(hand.cards)
 
   var counts: CountTable[int]
@@ -52,19 +53,19 @@ func strength(hand: Hand): int =
     counts.inc v
 
   if counts[5] > 0:
-    return five
+    return Five
   if counts[4] > 0:
-    return four
+    return Four
   if counts[3] > 0:
     if counts[2] > 0:
-      return full
+      return Full
     else:
-      return three
+      return Three
   if counts[2] == 2:
-    return twoPair
+    return TwoPair
   if counts[2] == 1:
-    return pair
-  return high
+    return Pair
+  return High
 
 func cmpHand(a: Hand, b: Hand): int =
   let strength = cmp(a.strength, b.strength)
@@ -87,7 +88,7 @@ proc part1(): int =
   for (rank, hand) in enumerate(hands):
     result += (rank + 1) * hand.bid
 
-func strengthJoker(hand: Hand): int =
+func strengthJoker(hand: Hand): Strength =
   let count = newCountTable(hand.cards)
 
   let jokers = count[1]
@@ -99,37 +100,37 @@ func strengthJoker(hand: Hand): int =
     regular.inc count
 
   if regular[5] > 0:
-    return five
+    return Five
   if regular[4] > 0:
     if jokers == 1:
-      return five
-    return four
+      return Five
+    return Four
   if regular[3] > 0:
     case jokers:
-      of 2: return five
-      of 1: return four
+      of 2: return Five
+      of 1: return Four
       else: discard
     if regular[2] > 0:
-      return full
-    return three
+      return Full
+    return Three
   if regular[2] == 2:
     if jokers == 1:
-      return full
-    return twoPair
+      return Full
+    return TwoPair
   if regular[2] == 1:
     case jokers:
-      of 3: return five
-      of 2: return four
-      of 1: return three
-      else: return pair
+      of 3: return Five
+      of 2: return Four
+      of 1: return Three
+      else: return Pair
 
   case jokers:
-    of 5: return five
-    of 4: return five
-    of 3: return four
-    of 2: return three
-    of 1: return pair
-    else: return high
+    of 5: return Five
+    of 4: return Five
+    of 3: return Four
+    of 2: return Three
+    of 1: return Pair
+    else: return High
 
 func cmpHandJoker(a: Hand, b: Hand): int =
   let strength = cmp(a.strengthJoker, b.strengthJoker)
