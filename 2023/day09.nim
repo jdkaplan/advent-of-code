@@ -56,4 +56,26 @@ proc part1(): int =
     var hh = deduce(h)
     result.inc extrapolate(hh)[^1]
 
+func extrapolateBack(hs: var Histories): seq[int] =
+  assert(hs[^1][0] == 0)
+
+  var row = len(hs) - 1
+  result.add 0
+  hs[row].insert(0, 0)
+
+  while row > 0:
+    let inferred = hs[row-1][0] - hs[row][0]
+    result.add inferred
+    hs[row-1].insert(inferred, 0)
+    dec row
+
+proc part2(): int =
+  let text = readFile("input/day09.txt")
+  var histories = parseHistories(text)
+
+  for h in histories:
+    var hh = deduce(h)
+    result.inc extrapolateBack(hh)[^1]
+
 echo part1()
+echo part2()
