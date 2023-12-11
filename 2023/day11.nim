@@ -66,4 +66,52 @@ proc part1(): int =
     for b in u.galaxies[i..^1]:
       result.inc manhattan(a, b)
 
+func hasGalaxyRow(u: Universe, r: int): bool =
+  for g in u.galaxies:
+    if g.r == r:
+      return true
+  return false
+
+func hasGalaxyCol(u: Universe, c: int): bool =
+  for g in u.galaxies:
+    if g.c == c:
+      return true
+  return false
+
+func expand(u: Universe, amt: int): seq[Point] =
+  result = u.galaxies
+  for r in countdown(u.rows - 1, 0):
+    if u.hasGalaxyRow(r):
+      continue
+
+    var gs: seq[Point]
+    for g in result:
+      if g.r > r:
+        gs.add (g.r + amt, g.c)
+      else:
+        gs.add g
+    result = gs
+
+  for c in countdown(u.cols - 1, 0):
+    if u.hasGalaxyCol(c):
+      continue
+
+    var gs: seq[Point]
+    for g in result:
+      if g.c > c:
+        gs.add (g.r, g.c + amt)
+      else:
+        gs.add g
+    result = gs
+
+proc part2(): int =
+  let text = readFile("input/day11.txt")
+  let universe = parseUniverse(text)
+  let galaxies = universe.expand(1_000_000 - 1)
+
+  for (i, a) in enumerate(galaxies):
+    for b in galaxies[i..^1]:
+      result.inc manhattan(a, b)
+
 echo part1()
+echo part2()
