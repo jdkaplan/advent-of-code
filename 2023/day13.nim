@@ -60,31 +60,47 @@ func row(p: Pattern, r: int): (seq[char], bool) =
   else:
     (@[], false)
 
-proc reflectAtV(p: Pattern, c: int): bool =
+func diff(a: seq[char], b: seq[char]): seq[int] =
+  for (aa, bb) in zip(a, b):
+    if aa != bb:
+      result.add 1
+
+func distance(a: seq[char], b: seq[char]): int =
+  diff(a, b).sum
+
+func reflectDistanceV(p: Pattern, c: int): int =
   for dc in 0 .. c:
     let (l, okL) = p.col(c-dc - 1)
     let (r, okR) = p.col(c+dc)
-    if okL and okR and l != r:
-      return false
-  true
+    if okL and okR:
+      result.inc distance(l, r)
 
-proc reflectAtH(p: Pattern, r: int): bool =
+func reflectDistanceH(p: Pattern, r: int): int =
   for dr in 0 ..< r:
     let (u, okU) = p.row(r-dr - 1)
     let (d, okD) = p.row(r+dr)
-    if okU and okD and d != u:
-      return false
-  true
+    if okU and okD:
+      result.inc distance(u, d)
 
 proc reflectVertical(p: Pattern): int =
   for c in 1 ..< p.width:
-    if p.reflectAtV(c):
+    if p.reflectDistanceV(c) == 0:
       return c
 
 proc reflectHorizontal(p: Pattern): int =
   for r in 1 ..< p.height:
-    if p.reflectAtH(r):
+    if p.reflectDistanceH(r) == 0:
       return r
+
+proc fix(p: Pattern): int =
+  let cols = (0 ..< p.width ).toSeq.filterIt(p.reflectDistanceV(it) == 1)
+  let rows = (0 ..< p.height).toSeq.filterIt(p.reflectDistanceH(it) == 1)
+  assert cols.len + rows.len == 1
+
+  if cols.len > 0:
+    result.inc cols[0]
+  if rows.len > 0:
+    result.inc 100 * rows[0]
 
 proc part1(input: string): int =
   let text = readFile(input)
@@ -94,5 +110,13 @@ proc part1(input: string): int =
     result.inc pattern.reflectVertical
     result.inc 100 * pattern.reflectHorizontal
 
+proc part2(input: string): int =
+  let text = readFile(input)
+  let patterns = parsePatterns(text)
+
+  patterns.map(fix).sum
+
 echo part1("input/test.txt")
 echo part1("input/day13.txt")
+echo part2("input/test.txt")
+echo part2("input/day13.txt")
