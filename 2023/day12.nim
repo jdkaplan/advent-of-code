@@ -74,105 +74,118 @@ proc runs(springs: Springs): Runs =
   if state == Damaged and count > 0:
     result.add count
 
-func solved(springs: Springs, record: Record): bool =
-  for (actual, expected) in zip(springs, record.springs):
-    if expected != Unknown and actual != expected:
-      return false
-  springs.runs == record.runs
-
-type Node = tuple
-  start: int
-  springs: Springs
-  runs: Runs
-
-proc successors(n: Node): seq[Node] =
-  let (start, springs, runs) = n
+proc successors(r: Record): seq[Record] =
+  let (springs, runs) = r
 
   # Nothing to do
-  if start >= springs.len: return
+  if springs.len == 0: return
 
-  # Everything after here must be operational.
   if runs.len == 0:
-    return @[(springs.len, springs.mapIt(if it == Unknown: Operational else: it), @[])]
+    # Everything after here must be operational.
+    if springs.allIt(it != Damaged):
+      return @[(@[], @[])]
+    return @[]
 
-  # Try putting the first possible run at each index.
+  # Try placing the first available run.
   let r = runs[0]
 
-  for i in start ..< springs.len:
+  for i in 0 ..< springs.len:
     # Inclusive range: [i..j].len == r
     let j = i + r - 1
 
-    # Run would go out of bounds
+    # Run would go out of bounds.
     if j >= springs.len: continue
 
     # Any known-good spring prevents this run from being here.
     if springs[i .. j].anyIt(it == Operational): continue
+
+    # A damaged spring before prevents this run from being here.
+    if springs[0..<i].anyIt(it == Damaged): continue
+
+    # A damaged spring after prevents this run from being here.
+    if j < springs.high and springs[j+1] == Damaged: continue
 
     # Already solved?
     if springs[i .. j].allIt(it == Damaged):
       let after = j+1
       if after == springs.len:
         # Yes, at EOL
-        let prefix = springs[0 ..< i].mapIt(if it == Unknown: Operational else: it)
-        let new = @[Damaged].cycle(r)
-        result.add (i+r+1, prefix & new, runs[1..^1])
-      elif springs[after] == Damaged:
-        # Nope, impossible
-        discard 0
+        result.add (@[], runs[1..^1])
       else:
         # Yes, needs gap
-        let prefix = springs[0 ..< i].mapIt(if it == Unknown: Operational else: it)
-        let new = @[Damaged].cycle(r) & @[Operational]
+        assert springs[after] != Damaged
         let suffix = springs[after+1 .. ^1]
-        result.add (after+1, prefix & new & suffix, runs[1..^1])
+        result.add (suffix, runs[1..^1])
       break
 
     # Can there be a separator after the run?
     let after = j+1
     if after == springs.len:
       # Yes, at EOL => Fill to end
-      let prefix = springs[0 ..< i].mapIt(if it == Unknown: Operational else: it)
-      let new = @[Damaged].cycle(r)
-      result.add (i+r+1, prefix & new, runs[1..^1])
-    elif springs[after] == Damaged:
-      # No => springs[i] must be operational.
-      let prefix = springs[0 ..< i].mapIt(if it == Unknown: Operational else: it)
-      let new = @[Operational]
-      let suffix = springs[i+1 .. ^1]
-      result.add (i+1, prefix & new & suffix, runs)
+      result.add (@[], runs[1..^1])
     else:
       # Yes => springs[after] is operational.
-      let prefix = springs[0 ..< i].mapIt(if it == Unknown: Operational else: it)
-      let new = @[Damaged].cycle(r) & @[Operational]
+      assert springs[after] != Damaged
       let suffix = springs[after+1 .. ^1]
-      result.add (after+1, prefix & new & suffix, runs[1..^1])
+      result.add (suffix, runs[1..^1])
 
 proc prompt(msg: string): string =
   stdout.write msg
   stdout.write " "
   stdin.readLine
 
-proc arrangements(r: Record): HashSet[Springs] =
-  var queue: seq[Node]
+proc solved(r: Record): bool =
+  r.runs.len == 0 and r.springs.allIt(it != Unknown)
 
-  queue.add (0, r.springs, r.runs)
+proc impossible(r: Record): bool =
+  (
+    r.runs.len == 0 and r.springs.anyIt(it == Damaged)
+  ) or (
+    r.runs.len > 0 and r.springs.allIt(it == Operational)
+  )
 
-  while queue.len > 0:
-    let current = queue.pop
-    let (start, springs, runs) = current
-    if solved(springs, r):
-      result.incl springs
-      continue
+proc arrangements(r: Record, memo: var Table[Record, int]): int =
+  if r in memo:
+    return memo[r]
 
-    for next in successors(current):
-      assert(next.springs.len == r.springs.len)
-      queue.add next
+  if r.impossible:
+    return 0
 
-proc part1(): int =
-  let text = readFile("input/day12.txt")
+  if r.solved:
+    return 1
+
+  for suffix in successors(r):
+    result.inc arrangements(suffix, memo)
+
+  memo[r] = result
+
+proc arrangements(r: Record): int =
+  var memo: Table[Record, int]
+  arrangements(r, memo)
+
+proc part1(input: string): int =
+  let text = readFile(input)
   let records = parseRecords(text)
 
-  for record in records:
-    result.inc record.arrangements.len
+  for (i, record) in enumerate(records):
+    result.inc record.arrangements
 
-echo part1()
+func unfold(record: Record): Record =
+  var springs = record.springs
+  for _ in 1..4:
+    springs = springs & @[Unknown]
+    springs = springs & record.springs
+  assert springs.len == 5 * record.springs.len + 4
+  (springs, record.runs.cycle(5))
+
+proc part2(input: string): int =
+  let text = readFile(input)
+  let records = parseRecords(text).map(unfold)
+
+  for record in records:
+    result.inc record.arrangements
+
+echo part1("input/test.txt")
+echo part1("input/day12.txt")
+echo part2("input/test.txt")
+echo part2("input/day12.txt")
