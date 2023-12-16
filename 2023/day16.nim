@@ -68,7 +68,7 @@ type Beam = tuple
   pos: Point
   dir: Direction
 
-func simulate(c: Contraption, beam: Beam): seq[Beam] =
+func tick(c: Contraption, beam: Beam): seq[Beam] =
   let (pos, dir) = beam
   let tile = c.grid[beam.pos]
   case tile:
@@ -106,11 +106,11 @@ func inBounds(c: Contraption, p: Point): bool =
 func inBounds(c: Contraption, b: Beam): bool =
   c.inBounds(b.pos)
 
-func simulate(c: Contraption): HashSet[Point] =
+func run(c: Contraption, start: Beam): HashSet[Point] =
   var beams: Deque[Beam]
   var seen: HashSet[Beam]
 
-  beams.addFirst ((0, 0), E)
+  beams.addFirst start
   while beams.len > 0:
     let beam = beams.popFirst
     if not c.inBounds(beam):
@@ -119,7 +119,7 @@ func simulate(c: Contraption): HashSet[Point] =
       continue
     seen.incl beam
 
-    for next in c.simulate(beam):
+    for next in c.tick(beam):
       beams.addLast next
 
   seen.map(func (b: Beam): Point = b.pos)
@@ -127,7 +127,33 @@ func simulate(c: Contraption): HashSet[Point] =
 proc part1(input: string): int =
   let text = readFile(input)
   let contraption = parseContraption(text)
-  contraption.simulate.len
+  contraption.run(((0, 0), E)).len
+
+proc part2(input: string): int =
+  let text = readFile(input)
+  let contraption = parseContraption(text)
+
+  # North edge
+  for c in 0 ..< contraption.width:
+    let tiles = contraption.run ((0, c), S)
+    result = result.max(tiles.len)
+
+  # South edge
+  for c in 0 ..< contraption.width:
+    let tiles = contraption.run ((contraption.height - 1, c), N)
+    result = result.max(tiles.len)
+
+  # West edge
+  for r in 0 ..< contraption.height:
+    let tiles = contraption.run ((r, 0), E)
+    result = result.max(tiles.len)
+
+  # East edge
+  for r in 0 ..< contraption.height:
+    let tiles = contraption.run ((r, contraption.width - 1), W)
+    result = result.max(tiles.len)
 
 echo part1("input/test.txt")
 echo part1("input/day16.txt")
+echo part2("input/test.txt")
+echo part2("input/day16.txt")
