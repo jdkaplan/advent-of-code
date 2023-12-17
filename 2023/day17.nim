@@ -97,8 +97,7 @@ type Node = tuple
 
 func `<`(a, b: Node): bool = a.cost < b.cost
 
-
-iterator successors(m: Map, state: State): (State, int) =
+func successors(m: Map, state: State): seq[(State, int)] =
   for steps in 1..3:
     var pos = state.pos
     var loss = 0
@@ -106,10 +105,12 @@ iterator successors(m: Map, state: State): (State, int) =
       pos = pos.move(state.dir, 1)
       loss += m.loss(pos)
 
-    yield ((pos, state.dir.cw), loss)
-    yield ((pos, state.dir.ccw), loss)
+    result.add ((pos, state.dir.cw), loss)
+    result.add ((pos, state.dir.ccw), loss)
 
-proc heatLoss(m: Map, start, goal: Point): int =
+type Successors = (Map, State) -> seq[(State, int)]
+
+proc heatLoss(m: Map, start, goal: Point, successors: Successors): int =
   var queue: HeapQueue[Node]
   var seen: HashSet[State]
 
@@ -136,7 +137,23 @@ proc heatLoss(m: Map, start, goal: Point): int =
 proc part1(input: string): int =
   let text = readFile(input)
   let map = parseMap(text)
-  map.heatLoss((0, 0), (map.height - 1, map.width - 1))
+  map.heatLoss((0, 0), (map.height - 1, map.width - 1), successors)
+
+func ultra(m: Map, state: State): seq[(State, int)] =
+  for steps in 4..10:
+    var pos = state.pos
+    var loss = 0
+    for _ in 1..steps:
+      pos = pos.move(state.dir, 1)
+      loss += m.loss(pos)
+
+    result.add ((pos, state.dir.cw), loss)
+    result.add ((pos, state.dir.ccw), loss)
+
+proc part2(input: string): int =
+  let text = readFile(input)
+  let map = parseMap(text)
+  map.heatLoss((0, 0), (map.height - 1, map.width - 1), ultra)
 
 proc timed[T](f: () -> T): T =
   let start = cpuTime()
@@ -145,3 +162,5 @@ proc timed[T](f: () -> T): T =
 
 echo timed(proc(): int = part1("input/test.txt"))
 echo timed(proc(): int = part1("input/day17.txt"))
+echo timed(proc(): int = part2("input/test.txt"))
+echo timed(proc(): int = part2("input/day17.txt"))
