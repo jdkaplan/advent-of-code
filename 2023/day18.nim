@@ -1,4 +1,5 @@
 import std/algorithm
+import std/bitops
 import std/deques
 import std/enumerate
 import std/heapqueue
@@ -50,28 +51,14 @@ func parseDirection(s: string): Direction =
     else:
       raise newException(ValueError, s)
 
-func cw(d: Direction): Direction =
-  case d:
-    of N: E
-    of E: S
-    of S: W
-    of W: N
-
-func ccw(d: Direction): Direction =
-  case d:
-    of N: W
-    of W: S
-    of S: E
-    of E: N
-
 type Instruction = tuple
   dir: Direction
   steps: int
-  color: string
+  color: int
 
 func parseInstruction(line: string): Instruction =
   var dir: string
-  if not scanf(line, "$+ $i ($+)$.", dir, result.steps, result.color):
+  if not scanf(line, "$+ $i (#$h)$.", dir, result.steps, result.color):
     raise newException(ValueError, line)
   result.dir = dir.parseDirection
 
@@ -82,6 +69,8 @@ type Point = tuple
   r: int
   c: int
 
+func `$`(p: Point): string = "(" & $p.r & ", " & $p.c & ")"
+
 func move(p: Point, d: Direction, n: int): Point =
   case d:
     of N: (p.r - n, p.c)
@@ -89,90 +78,65 @@ func move(p: Point, d: Direction, n: int): Point =
     of W: (p.r, p.c - n)
     of E: (p.r, p.c + n)
 
-type Lagoon = object
-  grid: Table[Point, char]
+func fix(i: Instruction): Instruction =
+  let steps = i.color shr 4
+  let dir = case i.color.masked 0xf
+    of 0: "R"
+    of 1: "D"
+    of 2: "L"
+    of 3: "U"
+    else: raise newException(ValueError, $i.color)
+  (dir.parseDirection, steps, i.color)
 
-  rlo, rhi: int
-  clo, chi: int
+func `//`(a, b: int): int =
+  assert a mod b == 0
+  a.floorDiv(b)
 
-func assign(l: var Lagoon, p: Point, sym: char) =
-  l.grid[p] = sym
+func polygon(path: seq[Instruction]): seq[Point] =
+  var pos = (0, 0)
+  result.add pos
 
-  l.rlo = min(l.rlo, p.r)
-  l.rhi = max(l.rhi, p.r)
-  l.clo = min(l.clo, p.c)
-  l.chi = max(l.chi, p.c)
+  for i in path:
+    pos = pos.move(i.dir, i.steps)
+    result.add pos
 
-func dig(l: var Lagoon, p: Point) =
-  l.assign(p, '#')
+proc area(path: seq[Point]): int =
+  for i in 0 ..< path.len - 1:
+    let a = path[i]
+    let b = path[(i+1) mod path.len]
 
-func inBoundsPadding(l: Lagoon, p: Point): bool =
-  p.r in (l.rlo - 1) .. (l.rhi + 1) and p.c in (l.clo - 1) .. (l.chi + 1)
+    let area = a.r * b.c - b.r * a.c
+    result.inc area
+    # echo a, " ", b, " = ", area, " => ", result
 
-func neighborsFill(l: Lagoon, p: Point): seq[Point] =
-  for (dr, dc) in [
-    (-1, 0), # Up
-    (+1, 0), # Down
-    (0, -1), # Left
-    (0, +1), # Right
-  ]:
-    let n = (p.r + dr, p.c + dc)
-    if l.inBoundsPadding(n):
-      result.add n
+func axisAligned(a, b: Point): bool =
+  a.r == b.r or a.c == b.c
 
-proc floodFill(l: var Lagoon, start: Point, sym: char) =
-  var queue: Deque[Point]
+func distance(a, b: Point): int =
+  abs(b.r - a.r) + abs(b.c - a.c)
 
-  queue.addLast start
+proc distance(path: seq[Point]): int =
+  for i in 0 ..< path.len - 1:
+    let a = path[i]
+    let b = path[(i+1) mod path.len]
+    assert axisAligned(a, b)
 
-  while queue.len > 0:
-    let p = queue.popFirst
+    let len = distance(a, b)
+    result.inc len
 
-    if p in l.grid: continue
-    l.grid[p] = sym
-
-    for n in l.neighborsFill(p):
-      queue.addLast n
-
-proc fill(l: var Lagoon) =
-  let empty = (l.rlo - 1, l.clo - 1)
-  l.floodFill(empty, '.')
-
-  for r in l.rlo .. l.rhi:
-    for c in l.clo .. l.chi:
-      let p = (r, c)
-      if p notin l.grid:
-        l.dig(p)
-
-func execute(l: var Lagoon, instructions: seq[Instruction]) =
-  var pos: Point = (0, 0)
-  l.dig(pos)
-
-  for i in instructions:
-    for _ in 1 .. i.steps:
-      pos = pos.move(i.dir, 1)
-      l.dig(pos)
-
-func render(l: Lagoon): string =
-  for r in l.rlo .. l.rhi:
-    for c in l.clo .. l.chi:
-      result &= l.grid.getOrDefault((r, c), ' ')
-    result &= '\n'
-
-func countDug(l: Lagoon): int =
-  for r in l.rlo .. l.rhi:
-    for c in l.clo .. l.chi:
-      if l.grid[(r, c)] == '#':
-        result.inc
+func lagoonArea(ii: seq[Instruction]): int =
+  let path = polygon(ii)
+  (path.area // 2).abs + (path.distance // 2) + 1
 
 proc part1(input: string): int =
   let text = readFile(input)
   let instructions = parseInstructions(text)
+  lagoonArea(instructions)
 
-  var lagoon: Lagoon
-  lagoon.execute(instructions)
-  lagoon.fill
-  lagoon.countDug
+proc part2(input: string): int =
+  let text = readFile(input)
+  let instructions = parseInstructions(text)
+  lagoonArea(instructions.map(fix))
 
 ###################
 
@@ -183,3 +147,5 @@ proc timed[T](f: () -> T): T =
 
 echo timed(proc(): int = part1("input/test.txt"))
 echo timed(proc(): int = part1("input/day18.txt"))
+echo timed(proc(): int = part2("input/test.txt"))
+echo timed(proc(): int = part2("input/day18.txt"))
