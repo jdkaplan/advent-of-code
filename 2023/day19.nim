@@ -137,6 +137,105 @@ proc part1(input: string): int =
     if system.accepted(part):
       result.inc part.rating
 
+type Range = tuple
+  lo, hi: int
+
+func maxRange(): Range = (1, 4000)
+
+type Ranges = tuple
+  x, m, a, s: Range
+
+func maxRanges(): Ranges =
+  result.x = maxRange()
+  result.m = maxRange()
+  result.a = maxRange()
+  result.s = maxRange()
+
+func minRanges(): Ranges = result
+
+func splitLt(r: Range, v: int): (Range, Range) =
+  ((r.lo, v - 1), (v, r.hi))
+
+func splitGt(r: Range, v: int): (Range, Range) =
+  ((r.lo, v), (v + 1, r.hi))
+
+func keepLt(r: Range, v: int): Range = splitLt(r, v)[0]
+func keepGt(r: Range, v: int): Range = splitGt(r, v)[1]
+func dropLt(r: Range, v: int): Range = splitLt(r, v)[1]
+func dropGt(r: Range, v: int): Range = splitGt(r, v)[0]
+
+func keep(rr: Range, step: Step): Range =
+  case step.op:
+    of None: rr
+    of Lt: rr.keepLt(step.val)
+    of Gt: rr.keepGt(step.val)
+
+func drop(rr: Range, step: Step): Range =
+  case step.op:
+    of None: rr
+    of Lt: rr.dropLt(step.val)
+    of Gt: rr.dropGt(step.val)
+
+func keep(rr: Ranges, step: Step): Ranges =
+  result = rr
+  case step.attr:
+    of 'x': result.x = rr.x.keep(step)
+    of 'm': result.m = rr.m.keep(step)
+    of 'a': result.a = rr.a.keep(step)
+    of 's': result.s = rr.s.keep(step)
+    else: raise newException(ValueError, $step.attr)
+
+func drop(rr: Ranges, step: Step): Ranges =
+  result = rr
+  case step.attr:
+    of 'x': result.x = rr.x.drop(step)
+    of 'm': result.m = rr.m.drop(step)
+    of 'a': result.a = rr.a.drop(step)
+    of 's': result.s = rr.s.drop(step)
+    else: raise newException(ValueError, $step.attr)
+
+func size(r: Range): int =
+  r.hi - r.lo + 1
+
+func size(rr: Ranges): int =
+  rr.x.size * rr.m.size * rr.a.size * rr.s.size
+
+func impossible(rr: Ranges): bool =
+  rr.size <= 0
+
+proc acceptable(sys: System): int =
+  var stack: seq[(string, Ranges)]
+
+  stack.add ("in", maxRanges())
+
+  while stack.len > 0:
+    var (name, ranges) = stack.pop
+
+    if ranges.impossible:
+      continue
+
+    if name == "A":
+      result.inc ranges.size
+      continue
+    if name == "R":
+      # result.dec ranges.size
+      continue
+
+    let workflow = sys.workflows[name]
+
+    for step in workflow.steps:
+      if step.op == None:
+        stack.add (step.dest, ranges)
+        continue
+
+      stack.add (step.dest, ranges.keep(step))
+      ranges = ranges.drop(step)
+
+proc part2(input: string): int =
+  let text = readFile(input)
+  let system = parseSystem(text)
+  system.acceptable
+
 ###################
 
 proc timed[T](f: () -> T): T =
@@ -146,5 +245,5 @@ proc timed[T](f: () -> T): T =
 
 echo timed(proc(): int = part1("input/test.txt"))
 echo timed(proc(): int = part1("input/day19.txt"))
-# echo timed(proc(): int = part2("input/test.txt"))
-# echo timed(proc(): int = part2("input/day19.txt"))
+echo timed(proc(): int = part2("input/test.txt"))
+echo timed(proc(): int = part2("input/day19.txt"))
