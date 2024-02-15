@@ -11,6 +11,9 @@ I like solving the [Advent of Code](https://adventofcode.com/) challenges every 
 - 2023: Nim
 
 Languages I'd like to use for the future or TODO years:
-- J (or other APL-like)
+- Gleam
 - Haskell
+- Inko
+- J (or other APL-like)
+- Koka
 - Zig
