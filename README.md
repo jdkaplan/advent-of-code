@@ -14,6 +14,6 @@ Languages I'd like to use for the future or TODO years:
 - Gleam
 - Haskell
 - Inko
-- J (or other APL-like)
 - Koka
+- Uiua (or other APL-like)
 - Zig
