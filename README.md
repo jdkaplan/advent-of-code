@@ -9,6 +9,7 @@ I like solving the [Advent of Code](https://adventofcode.com/) challenges every 
 - 2021: Go
 - 2022: Rust (Again! v1.65, 2021 edition)
 - 2023: Nim
+- 2024: Zig
 
 Languages I'd like to use for the future or TODO years:
 - Gleam
@@ -16,4 +17,3 @@ Languages I'd like to use for the future or TODO years:
 - Inko
 - Koka
 - Uiua (or other APL-like)
-- Zig
