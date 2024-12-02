@@ -6,6 +6,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
+    // const file = try std.fs.cwd().openFile("input/test.txt", .{});
     const file = try std.fs.cwd().openFile("input/day02.txt", .{});
     defer file.close();
 
@@ -25,6 +26,7 @@ pub fn main() !void {
     }
 
     try stdout.print("{d}\n", .{part1(reports)});
+    try stdout.print("{d}\n", .{try part2(allocator, reports)});
     try bw.flush();
 
     for (reports.items) |r| {
@@ -33,14 +35,14 @@ pub fn main() !void {
 }
 
 const Report = struct {
-    levels: std.ArrayList(u32),
+    levels: std.ArrayList(i32),
 
     fn parse(allocator: std.mem.Allocator, line: std.ArrayList(u8)) !Report {
-        var levels = std.ArrayList(u32).init(allocator);
+        var levels = std.ArrayList(i32).init(allocator);
 
         var it = std.mem.tokenizeScalar(u8, line.items, ' ');
         while (it.next()) |level| {
-            const i = try std.fmt.parseInt(u32, level, 10);
+            const i = try std.fmt.parseInt(i32, level, 10);
             try levels.append(i);
         }
 
@@ -52,46 +54,84 @@ const Report = struct {
     }
 
     fn is_safe(self: Report) bool {
+        return self.first_problem() == null;
+    }
+
+    fn first_problem(self: Report) ?usize {
         var prev = self.levels.items[0];
 
-        const sign = self.levels.items[1] > self.levels.items[0];
+        const sign = Sign.of(self.levels.items[1] - self.levels.items[0]);
 
         var i: usize = 1;
         while (i < self.levels.items.len) {
             const next = self.levels.items[i];
-            const diff = abs_diff(next, prev);
+            const diff = next - prev;
 
-            if ((next > prev) != sign) {
-                return false;
-            }
-
-            if (diff < 1 or diff > 3) {
-                return false;
+            if (Sign.of(diff) != sign or @abs(diff) < 1 or @abs(diff) > 3) {
+                return i;
             }
 
             prev = next;
             i += 1;
         }
 
-        return true;
+        return null;
+    }
+
+    fn is_safe_tolerant(self: Report, allocator: std.mem.Allocator) !bool {
+        if (self.is_safe()) {
+            return true;
+        }
+
+        for (0..self.levels.items.len) |i| {
+            var fixed = std.ArrayList(i32).init(allocator);
+            defer fixed.deinit();
+
+            try fixed.appendSlice(self.levels.items[0..i]);
+            try fixed.appendSlice(self.levels.items[i + 1 ..]);
+
+            if (is_safe(Report{ .levels = fixed })) {
+                return true;
+            }
+        }
+
+        return false;
     }
 };
 
-fn abs_diff(a: u32, b: u32) u32 {
-    if (a > b) {
-        return a - b;
-    } else {
-        return b - a;
-    }
-}
+const Sign = enum {
+    pos,
+    neg,
+    zero,
 
-fn part1(reports: std.ArrayList(Report)) u32 {
-    var n: u32 = 0;
+    fn of(i: i32) Sign {
+        if (i > 0) {
+            return .pos;
+        }
+        if (i < 0) {
+            return .neg;
+        }
+        return .zero;
+    }
+};
+
+fn part1(reports: std.ArrayList(Report)) i32 {
+    var n: i32 = 0;
     for (reports.items) |report| {
         if (report.is_safe()) {
             n += 1;
         }
     }
 
+    return n;
+}
+
+fn part2(allocator: std.mem.Allocator, reports: std.ArrayList(Report)) !i32 {
+    var n: i32 = 0;
+    for (reports.items) |report| {
+        if (report.is_safe() or try report.is_safe_tolerant(allocator)) {
+            n += 1;
+        }
+    }
     return n;
 }
