@@ -49,17 +49,18 @@ const Memory = struct {
     fn next_mul(self: *Memory) ?Mul {
         while (self.pos < self.text.len) {
             self.pos += std.mem.indexOf(u8, self.text[self.pos..], "mul(") orelse return null;
-            self.pos += consume(self.text[self.pos..], "mul(").?;
 
-            const a = parsePrefixInt(self.text[self.pos..]) orelse continue;
-            self.pos += a.chars;
+            self.pos += consumeLiteral(self.text[self.pos..], "mul(").?;
 
-            self.pos += consume(self.text[self.pos..], ",") orelse continue;
+            const a = consumeInt(self.text[self.pos..]) orelse continue;
+            self.pos += a.chars.len;
 
-            const b = parsePrefixInt(self.text[self.pos..]) orelse continue;
-            self.pos += b.chars;
+            self.pos += consumeLiteral(self.text[self.pos..], ",") orelse continue;
 
-            self.pos += consume(self.text[self.pos..], ")") orelse continue;
+            const b = consumeInt(self.text[self.pos..]) orelse continue;
+            self.pos += b.chars.len;
+
+            self.pos += consumeLiteral(self.text[self.pos..], ")") orelse continue;
 
             return .{ .a = a.value, .b = b.value };
         }
@@ -68,27 +69,28 @@ const Memory = struct {
 
     fn next_instruction(self: *Memory) ?Instruction {
         while (self.pos < self.text.len) {
-            if (consume(self.text[self.pos..], "do()")) |n| {
+            if (consumeLiteral(self.text[self.pos..], "do()")) |n| {
                 self.pos += n;
                 return Instruction.do;
             }
 
-            if (consume(self.text[self.pos..], "don't()")) |n| {
+            if (consumeLiteral(self.text[self.pos..], "don't()")) |n| {
                 self.pos += n;
                 return Instruction.dont;
             }
 
-            if (consume(self.text[self.pos..], "mul(")) |n| {
+            if (consumeLiteral(self.text[self.pos..], "mul(")) |n| {
                 self.pos += n;
-                const a = parsePrefixInt(self.text[self.pos..]) orelse continue;
-                self.pos += a.chars;
 
-                self.pos += consume(self.text[self.pos..], ",") orelse continue;
+                const a = consumeInt(self.text[self.pos..]) orelse continue;
+                self.pos += a.chars.len;
 
-                const b = parsePrefixInt(self.text[self.pos..]) orelse continue;
-                self.pos += b.chars;
+                self.pos += consumeLiteral(self.text[self.pos..], ",") orelse continue;
 
-                self.pos += consume(self.text[self.pos..], ")") orelse continue;
+                const b = consumeInt(self.text[self.pos..]) orelse continue;
+                self.pos += b.chars.len;
+
+                self.pos += consumeLiteral(self.text[self.pos..], ")") orelse continue;
 
                 return Instruction{ .mul = .{ .a = a.value, .b = b.value } };
             }
@@ -99,14 +101,21 @@ const Memory = struct {
     }
 };
 
-fn consume(text: []const u8, want: []const u8) ?usize {
+fn Match(comptime T: type) type {
+    return struct {
+        value: T,
+        chars: []const u8,
+    };
+}
+
+fn consumeLiteral(text: []const u8, want: []const u8) ?usize {
     if (std.mem.startsWith(u8, text, want)) {
         return want.len;
     }
     return null;
 }
 
-fn parsePrefixInt(s: []u8) ?struct { value: u32, chars: usize } {
+fn consumeInt(s: []u8) ?Match(u32) {
     var idx: usize = 0;
     var value: u32 = 0;
 
@@ -117,7 +126,7 @@ fn parsePrefixInt(s: []u8) ?struct { value: u32, chars: usize } {
     }
 
     if (idx > 0) {
-        return .{ .value = value, .chars = idx };
+        return .{ .value = value, .chars = s[0..idx] };
     }
     return null;
 }
