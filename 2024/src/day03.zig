@@ -20,6 +20,7 @@ pub fn main() !void {
     const stdout = bw.writer();
 
     try stdout.print("{d}\n", .{part1(text)});
+    try stdout.print("{d}\n", .{part2(text)});
     try bw.flush();
 }
 
@@ -28,20 +29,25 @@ const Mul = struct {
     b: u32,
 };
 
-const MulIterator = struct {
+const Instruction = union(enum) {
+    do,
+    dont,
+    mul: Mul,
+};
+
+const Memory = struct {
     text: []u8,
     pos: usize,
 
-    fn new(text: []u8) MulIterator {
+    fn new(text: []u8) Memory {
         return .{
             .text = text,
             .pos = 0,
         };
     }
 
-    fn next(self: *MulIterator) ?Mul {
+    fn next_mul(self: *Memory) ?Mul {
         while (self.pos < self.text.len) {
-
             self.pos += std.mem.indexOf(u8, self.text[self.pos..], "mul(") orelse return null;
             self.pos += consume(self.text[self.pos..], "mul(").?;
 
@@ -56,6 +62,38 @@ const MulIterator = struct {
             self.pos += consume(self.text[self.pos..], ")") orelse continue;
 
             return .{ .a = a.value, .b = b.value };
+        }
+        return null;
+    }
+
+    fn next_instruction(self: *Memory) ?Instruction {
+        while (self.pos < self.text.len) {
+            if (consume(self.text[self.pos..], "do()")) |n| {
+                self.pos += n;
+                return Instruction.do;
+            }
+
+            if (consume(self.text[self.pos..], "don't()")) |n| {
+                self.pos += n;
+                return Instruction.dont;
+            }
+
+            if (consume(self.text[self.pos..], "mul(")) |n| {
+                self.pos += n;
+                const a = parsePrefixInt(self.text[self.pos..]) orelse continue;
+                self.pos += a.chars;
+
+                self.pos += consume(self.text[self.pos..], ",") orelse continue;
+
+                const b = parsePrefixInt(self.text[self.pos..]) orelse continue;
+                self.pos += b.chars;
+
+                self.pos += consume(self.text[self.pos..], ")") orelse continue;
+
+                return Instruction{ .mul = .{ .a = a.value, .b = b.value } };
+            }
+
+            self.pos += 1;
         }
         return null;
     }
@@ -85,10 +123,26 @@ fn parsePrefixInt(s: []u8) ?struct { value: u32, chars: usize } {
 }
 
 fn part1(text: []u8) u32 {
-    var it = MulIterator.new(text);
+    var mem = Memory.new(text);
     var sum: u32 = 0;
-    while (it.next()) |mul| {
+    while (mem.next_mul()) |mul| {
         sum += mul.a * mul.b;
+    }
+    return sum;
+}
+
+fn part2(text: []u8) u32 {
+    var mem = Memory.new(text);
+    var enabled = true;
+    var sum: u32 = 0;
+    while (mem.next_instruction()) |inst| {
+        switch (inst) {
+            .do => enabled = true,
+            .dont => enabled = false,
+            .mul => |*mul| if (enabled) {
+                sum += mul.a * mul.b;
+            },
+        }
     }
     return sum;
 }
