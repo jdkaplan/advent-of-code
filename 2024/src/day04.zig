@@ -21,6 +21,9 @@ pub fn main() !void {
 
     try stdout.print("{d}\n", .{try part1(allocator, text)});
     try bw.flush();
+
+    try stdout.print("{d}\n", .{try part2(allocator, text)});
+    try bw.flush();
 }
 
 const Coord = struct {
@@ -99,4 +102,46 @@ fn part1(allocator: Allocator, text: []u8) !usize {
     }
 
     return count;
+}
+
+fn part2(allocator: Allocator, text: []u8) !usize {
+    var grid = std.AutoHashMap(Coord, u8).init(allocator);
+    defer grid.deinit();
+
+    {
+        var it = std.mem.tokenizeScalar(u8, text, '\n');
+        var r: usize = 0;
+        while (it.next()) |row| : (r += 1) {
+            for (row, 0..) |char, c| {
+                try grid.put(.{ .r = @intCast(r), .c = @intCast(c) }, char);
+            }
+        }
+    }
+
+    var count: usize = 0;
+    var it = grid.iterator();
+    while (it.next()) |entry| {
+        const v = entry.value_ptr.*;
+        if (v != 'A') {
+            continue;
+        }
+
+        var a = entry.key_ptr.*;
+
+        const nw = grid.get(a.move(Direction.NW)) orelse continue;
+        const se = grid.get(a.move(Direction.SE)) orelse continue;
+
+        const sw = grid.get(a.move(Direction.SW)) orelse continue;
+        const ne = grid.get(a.move(Direction.NE)) orelse continue;
+
+        if (is_mas(nw, se) and is_mas(sw, ne)) {
+            count += 1;
+        }
+    }
+
+    return count;
+}
+
+fn is_mas(x: u8, y: u8) bool {
+    return (x == 'M' and y == 'S') or (y == 'M' and x == 'S');
 }
