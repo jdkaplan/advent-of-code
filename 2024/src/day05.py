@@ -1,6 +1,7 @@
 import os
 from collections import defaultdict
 from dataclasses import dataclass
+from functools import cmp_to_key
 
 
 def relpath(path: str) -> str:
@@ -28,26 +29,43 @@ class Constraint:
     after: set[int]
 
 
-def part1(rules, updates):
-    constraints = defaultdict(lambda: Constraint(before=set(), after=set()))
+constraints = defaultdict(lambda: Constraint(before=set(), after=set()))
 
-    for (x, y) in rules:
-        constraints[x].after.add(y)
-        constraints[y].before.add(x)
-
-    middles = 0
-    for update in updates:
-        valid = True
-        for (x, y) in zip(update[:-1], update[1:]):
-            if x not in constraints or y in constraints[x].after:
-                continue
-            valid = False
-            break
-
-        if valid:
-            middles += update[int(len(update)) // 2]
-
-    return middles
+for (x, y) in rules:
+    constraints[x].after.add(y)
+    constraints[y].before.add(x)
 
 
-print(part1(rules, updates))
+def is_valid(update):
+    for (x, y) in zip(update[:-1], update[1:]):
+        if x not in constraints or y in constraints[x].after:
+            continue
+        return False
+    return True
+
+
+def part1():
+    return sum(
+        update[int(len(update)) // 2]
+        for update in updates
+        if is_valid(update)
+    )
+
+
+def part2():
+    def compare(x, y):
+        if y in constraints[x].after:
+            return +1
+        if y in constraints[x].before:
+            return -1
+        return 0
+
+    return sum(
+        sorted(update, key=cmp_to_key(compare))[int(len(update)) // 2]
+        for update in updates
+        if not is_valid(update)
+    )
+
+
+print(part1())
+print(part2())
