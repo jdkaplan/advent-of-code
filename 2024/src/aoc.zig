@@ -28,3 +28,36 @@ pub const Lines = struct {
         }
     }
 };
+
+pub fn AutoHashSet(comptime T: type) type {
+    const Empty = struct {};
+    const Map = std.AutoHashMap(T, Empty);
+
+    return struct {
+        map: Map,
+
+        const Self = @This();
+
+        pub fn init(allocator: std.mem.Allocator) Self {
+            return .{
+                .map = Map.init(allocator),
+            };
+        }
+
+        pub fn deinit(self: *Self) void {
+            self.map.deinit();
+        }
+
+        pub fn put(self: *Self, v: T) !void {
+            return self.map.put(v, .{});
+        }
+
+        pub fn contains(self: Self, v: T) bool {
+            return self.map.contains(v);
+        }
+
+        pub fn valueIterator(self: Self) Map.KeyIterator {
+            return self.map.keyIterator();
+        }
+    };
+}
