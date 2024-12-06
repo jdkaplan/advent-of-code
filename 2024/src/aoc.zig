@@ -56,8 +56,12 @@ pub fn AutoHashSet(comptime T: type) type {
             return self.map.contains(v);
         }
 
-        pub fn valueIterator(self: Self) Map.KeyIterator {
+        pub fn iterator(self: Self) Map.KeyIterator {
             return self.map.keyIterator();
+        }
+
+        pub fn count(self: Self) usize {
+            return self.map.count();
         }
     };
 }
