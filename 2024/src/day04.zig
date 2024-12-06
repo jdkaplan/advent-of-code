@@ -15,14 +15,17 @@ pub fn main() !void {
     const text = try file.readToEndAlloc(allocator, comptime 1 << 30);
     defer allocator.free(text);
 
+    var grid = try Grid.parse(allocator, text);
+    defer grid.deinit();
+
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
-    try stdout.print("{d}\n", .{try part1(allocator, text)});
+    try stdout.print("{d}\n", .{try part1(grid)});
     try bw.flush();
 
-    try stdout.print("{d}\n", .{try part2(allocator, text)});
+    try stdout.print("{d}\n", .{try part2(grid)});
     try bw.flush();
 }
 
@@ -66,20 +69,39 @@ const Direction = enum {
     }
 };
 
-fn part1(allocator: Allocator, text: []u8) !usize {
-    var grid = std.AutoHashMap(Coord, u8).init(allocator);
-    defer grid.deinit();
+const Grid = struct {
+    const Map = std.AutoHashMap(Coord, u8);
 
-    {
+    map: Map,
+
+    fn parse(allocator: std.mem.Allocator, text: []u8) !Grid {
+        var map = Map.init(allocator);
+
         var it = std.mem.tokenizeScalar(u8, text, '\n');
         var r: usize = 0;
         while (it.next()) |row| : (r += 1) {
             for (row, 0..) |char, c| {
-                try grid.put(.{ .r = @intCast(r), .c = @intCast(c) }, char);
+                try map.put(.{ .r = @intCast(r), .c = @intCast(c) }, char);
             }
         }
+
+        return .{ .map = map };
     }
 
+    fn deinit(self: *Grid) void {
+        self.map.deinit();
+    }
+
+    fn iterator(self: *const Grid) Map.Iterator {
+        return self.map.iterator();
+    }
+
+    fn get(self: *const Grid, k: Coord) ?u8 {
+        return self.map.get(k);
+    }
+};
+
+fn part1(grid: Grid) !usize {
     var count: usize = 0;
     var it = grid.iterator();
     while (it.next()) |entry| {
@@ -104,20 +126,7 @@ fn part1(allocator: Allocator, text: []u8) !usize {
     return count;
 }
 
-fn part2(allocator: Allocator, text: []u8) !usize {
-    var grid = std.AutoHashMap(Coord, u8).init(allocator);
-    defer grid.deinit();
-
-    {
-        var it = std.mem.tokenizeScalar(u8, text, '\n');
-        var r: usize = 0;
-        while (it.next()) |row| : (r += 1) {
-            for (row, 0..) |char, c| {
-                try grid.put(.{ .r = @intCast(r), .c = @intCast(c) }, char);
-            }
-        }
-    }
-
+fn part2(grid: Grid) !usize {
     var count: usize = 0;
     var it = grid.iterator();
     while (it.next()) |entry| {
