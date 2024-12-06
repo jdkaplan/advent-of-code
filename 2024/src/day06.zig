@@ -24,6 +24,9 @@ pub fn main() !void {
 
     try stdout.print("{d}\n", .{try part1(allocator, lab)});
     try bw.flush();
+
+    try stdout.print("{d}\n", .{try part2(allocator, lab)});
+    try bw.flush();
 }
 
 const Coords = struct {
@@ -110,6 +113,10 @@ const Lab = struct {
     fn get(self: *const Self, k: Coords) ?u8 {
         return self.map.get(k);
     }
+
+    fn put(self: *Self, k: Coords, v: u8) !void {
+        return self.map.put(k, v);
+    }
 };
 
 const Guard = struct {
@@ -127,6 +134,30 @@ const Guard = struct {
     fn rotate(self: *Guard) void {
         self.dir = self.dir.clockwise();
     }
+
+    fn tick(self: Guard, lab: Lab) ?Guard {
+        var guard = self;
+        const next = lab.get(guard.facing()) orelse return null;
+        if (next == '#') {
+            guard.rotate();
+        } else {
+            guard.move();
+        }
+        return guard;
+    }
+
+    fn next_turn(self: Guard, lab: Lab) ?Guard {
+        var guard = self;
+        while (lab.get(guard.facing())) |next| {
+            if (next == '#') {
+                guard.rotate();
+                return guard;
+            } else {
+                guard.move();
+            }
+        }
+        return null;
+    }
 };
 
 fn part1(allocator: Allocator, lab: Lab) !usize {
@@ -140,12 +171,7 @@ fn part1(allocator: Allocator, lab: Lab) !usize {
 
     while (!visited.contains(guard)) {
         try visited.put(guard);
-        const next = lab.get(guard.facing()) orelse break;
-        if (next == '#') {
-            guard.rotate();
-        } else {
-            guard.move();
-        }
+        guard = guard.tick(lab) orelse break;
     }
 
     var uniq = aoc.AutoHashSet(Coords).init(allocator);
@@ -157,4 +183,53 @@ fn part1(allocator: Allocator, lab: Lab) !usize {
     }
 
     return uniq.count();
+}
+
+fn part2(allocator: Allocator, labClean: Lab) !usize {
+    var lab = labClean;
+
+    var guard = Guard{
+        .coords = lab.start,
+        .dir = .N,
+    };
+
+    var visited = aoc.AutoHashSet(Guard).init(allocator);
+    defer visited.deinit();
+
+    while (!visited.contains(guard)) {
+        try visited.put(guard);
+        guard = guard.tick(lab) orelse break;
+    }
+
+    var obstructions = aoc.AutoHashSet(Coords).init(allocator);
+    defer obstructions.deinit();
+
+    var it = visited.iterator();
+    while (it.next()) |g| {
+        const loc = g.coords;
+        const orig = lab.get(loc) orelse unreachable;
+        if (orig == '#') {
+            continue;
+        }
+
+        try lab.put(loc, '#');
+
+        var g2 = Guard{
+            .coords = lab.start,
+            .dir = .N,
+        };
+        var v2 = aoc.AutoHashSet(Guard).init(allocator);
+        defer v2.deinit();
+
+        while (!v2.contains(g2)) {
+            try v2.put(g2);
+            g2 = g2.next_turn(lab) orelse break;
+        } else {
+            try obstructions.put(loc);
+        }
+
+        try lab.put(loc, orig);
+    }
+
+    return obstructions.count();
 }
