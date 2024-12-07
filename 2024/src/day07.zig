@@ -27,21 +27,63 @@ pub fn main() !void {
 
     try stdout.print("{d}\n", .{try part1(allocator, equations.items)});
     try bw.flush();
+
+    try stdout.print("{d}\n", .{try part2(allocator, equations.items)});
+    try bw.flush();
+}
+
+fn part1(allocator: Allocator, equations: []Equation) !u64 {
+    var sum: u64 = 0;
+    for (equations) |eqn| {
+        if (try eqn.solvable(allocator, &[_]Operator{ .Plus, .Times })) {
+            sum += eqn.value;
+        }
+    }
+    return sum;
+}
+
+fn part2(allocator: Allocator, equations: []Equation) !u64 {
+    var sum: u64 = 0;
+    for (equations) |eqn| {
+        if (try eqn.solvable(allocator, &[_]Operator{ .Plus, .Times }) or try eqn.solvable(allocator, &[_]Operator{ .Plus, .Times, .Concat })) {
+            sum += eqn.value;
+        }
+    }
+    return sum;
 }
 
 const Operator = enum {
     Plus,
     Times,
+    Concat,
 
     fn eval(self: Operator, a: u64, b: u64) u64 {
+        const pow = std.math.pow;
+        const log = std.math.log;
+
         return switch (self) {
             .Plus => a + b,
             .Times => a * b,
+            .Concat => (a * pow(u64, 10, 1 + log(u64, 10, b))) + b,
         };
     }
 };
 
-const Operators = ArrayList(Operator);
+test "Operator.Concat" {
+    const expect = std.testing.expect;
+
+    const cases = [_]struct { u64, u64, u64 }{
+        .{ 15, 6, 156 },
+        .{ 100, 23, 10023 },
+    };
+
+    for (cases) |case| {
+        const a, const b, const expected = .{ case[0], case[1], case[2] };
+        const actual = Operator.Concat.eval(a, b);
+        // std.debug.print("{}\n", .{actual});
+        try expect(actual == expected);
+    }
+}
 
 const Equation = struct {
     value: u64,
@@ -87,50 +129,42 @@ const Equation = struct {
 
     fn eval(self: Self, operators: ArrayList(Operator)) u64 {
         var v = self.operands.items[0];
-        for (self.operands.items[1..], operators.items) |n, op| {
+        for (self.operands.items[1 .. operators.items.len + 1], operators.items) |n, op| {
             v = op.eval(v, n);
         }
         return v;
     }
 
-    fn solvable(self: Self, allocator: Allocator) !bool {
-        var stack = ArrayList(Operators).init(allocator);
+    fn solvable(self: Self, allocator: Allocator, operators: []const Operator) !bool {
+        const State = struct {
+            partial: u64,
+            operands: []u64,
+        };
+
+        var stack = ArrayList(State).init(allocator);
         defer stack.deinit();
-        defer {
-            for (stack.items) |ops| ops.deinit();
-        }
 
-        try stack.append(Operators.init(allocator));
+        try stack.append(State{
+            .partial = self.operands.items[0],
+            .operands = self.operands.items[1..],
+        });
 
-        while (stack.popOrNull()) |ops| {
-            defer ops.deinit();
-
-            if (ops.items.len == self.operands.items.len - 1) {
-                if (self.eval(ops) == self.value) {
+        while (stack.popOrNull()) |state| {
+            if (state.operands.len == 0) {
+                if (state.partial == self.value) {
                     return true;
                 }
                 continue;
             }
 
-            var plus = try ops.clone();
-            try plus.append(Operator.Plus);
-            try stack.append(plus);
-
-            var times = try ops.clone();
-            try times.append(Operator.Times);
-            try stack.append(times);
+            for (operators) |op| {
+                try stack.append(State{
+                    .partial = op.eval(state.partial, state.operands[0]),
+                    .operands = state.operands[1..],
+                });
+            }
         }
 
         return false;
     }
 };
-
-fn part1(allocator: Allocator, equations: []Equation) !u64 {
-    var sum: u64 = 0;
-    for (equations) |eqn| {
-        if (try eqn.solvable(allocator)) {
-            sum += eqn.value;
-        }
-    }
-    return sum;
-}
