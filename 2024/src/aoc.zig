@@ -65,3 +65,20 @@ pub fn AutoHashSet(comptime T: type) type {
         }
     };
 }
+
+pub fn parseAll(
+    comptime T: type,
+    allocator: std.mem.Allocator,
+    text: []const u8,
+    sep: []const u8,
+) !std.ArrayList(T) {
+    var all = std.ArrayList(T).init(allocator);
+
+    var it = std.mem.tokenizeSequence(u8, text, sep);
+    while (it.next()) |s| {
+        const eqn = try T.parse(allocator, s);
+        try all.append(eqn);
+    }
+
+    return all;
+}

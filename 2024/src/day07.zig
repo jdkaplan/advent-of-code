@@ -15,7 +15,7 @@ pub fn main() !void {
     const text = try file.readToEndAlloc(allocator, comptime 1 << 30);
     defer allocator.free(text);
 
-    var equations = try Equation.parseAll(allocator, text);
+    var equations = try aoc.parseAll(Equation, allocator, text, "\n");
     defer equations.deinit();
     defer {
         for (equations.items) |*eqn| eqn.deinit();
@@ -45,7 +45,9 @@ fn part1(allocator: Allocator, equations: []Equation) !u64 {
 fn part2(allocator: Allocator, equations: []Equation) !u64 {
     var sum: u64 = 0;
     for (equations) |eqn| {
-        if (try eqn.solvable(allocator, &[_]Operator{ .Plus, .Times }) or try eqn.solvable(allocator, &[_]Operator{ .Plus, .Times, .Concat })) {
+        const ops1 = &[_]Operator{ .Plus, .Times };
+        const ops2 = &[_]Operator{ .Plus, .Times, .Concat };
+        if (try eqn.solvable(allocator, ops1) or try eqn.solvable(allocator, ops2)) {
             sum += eqn.value;
         }
     }
@@ -95,7 +97,7 @@ const Equation = struct {
         self.operands.deinit();
     }
 
-    fn parse(allocator: Allocator, line: []const u8) !Self {
+    pub fn parse(allocator: Allocator, line: []const u8) !Self {
         const value, const rest = a: {
             var it = std.mem.splitSequence(u8, line, ": ");
             const value = try std.fmt.parseInt(u64, it.next().?, 10);
@@ -113,26 +115,6 @@ const Equation = struct {
         };
 
         return .{ .value = value, .operands = operands };
-    }
-
-    fn parseAll(allocator: Allocator, text: []const u8) !ArrayList(Self) {
-        var all = ArrayList(Self).init(allocator);
-
-        var it = std.mem.tokenizeScalar(u8, text, '\n');
-        while (it.next()) |line| {
-            const eqn = try Self.parse(allocator, line);
-            try all.append(eqn);
-        }
-
-        return all;
-    }
-
-    fn eval(self: Self, operators: ArrayList(Operator)) u64 {
-        var v = self.operands.items[0];
-        for (self.operands.items[1 .. operators.items.len + 1], operators.items) |n, op| {
-            v = op.eval(v, n);
-        }
-        return v;
     }
 
     fn solvable(self: Self, allocator: Allocator, operators: []const Operator) !bool {
