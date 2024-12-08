@@ -82,3 +82,25 @@ pub fn parseAll(
 
     return all;
 }
+
+pub fn gcd(n: i32, m: i32) i32 {
+    var a = @abs(n);
+    var b = @abs(m);
+
+    while (b != 0) {
+        const t = b;
+        b = a % b;
+        a = t;
+    }
+
+    return @intCast(a);
+}
+
+test "gcd" {
+    const expectEqual = std.testing.expectEqual;
+
+    try expectEqual(2, gcd(2, 4));
+    try expectEqual(1, gcd(2, 5));
+    try expectEqual(1, gcd(-2, 3));
+    try expectEqual(2, gcd(-2, -4));
+}

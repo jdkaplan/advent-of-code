@@ -18,49 +18,29 @@ pub fn main() !void {
     var grid = try Grid.parse(allocator, text);
     defer grid.deinit();
 
+    var nodes = try NodeSet.make(allocator, grid);
+    defer nodes.deinit();
+
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
-    try stdout.print("{d}\n", .{try part1(allocator, grid)});
+    try stdout.print("{d}\n", .{try part1(allocator, grid, nodes)});
+    try bw.flush();
+
+    try stdout.print("{d}\n", .{try part2(allocator, grid, nodes)});
     try bw.flush();
 }
 
-fn part1(allocator: Allocator, grid: Grid) !u64 {
-    var nodes = std.AutoHashMap(u8, aoc.AutoHashSet(Pos)).init(allocator);
-    defer nodes.deinit();
-    defer {
-        var it = nodes.valueIterator();
-        while (it.next()) |v| {
-            v.deinit();
-        }
-    }
-
-    {
-        var it = grid.iterator();
-        while (it.next()) |mapEntry| {
-            const pos = mapEntry.key_ptr.*;
-            const id = mapEntry.value_ptr.*;
-            if (id == '.') {
-                continue;
-            }
-
-            var nodeEntry = try nodes.getOrPut(id);
-            if (!nodeEntry.found_existing) {
-                nodeEntry.value_ptr.* = aoc.AutoHashSet(Pos).init(allocator);
-            }
-            try nodeEntry.value_ptr.put(pos);
-        }
-    }
-
+fn part1(allocator: Allocator, grid: Grid, nodes: NodeSet) !u64 {
     var antinodes = aoc.AutoHashSet(Pos).init(allocator);
     defer antinodes.deinit();
 
-    var it = nodes.valueIterator();
-    while (it.next()) |nodeSet| {
-        var aa = nodeSet.iterator();
+    var it = nodes.map.valueIterator();
+    while (it.next()) |positions| {
+        var aa = positions.iterator();
         while (aa.next()) |a| {
-            var bb = nodeSet.iterator();
+            var bb = positions.iterator();
             while (bb.next()) |b| {
                 if (a == b) {
                     continue;
@@ -72,6 +52,32 @@ fn part1(allocator: Allocator, grid: Grid) !u64 {
                     .dc = 2 * d.dc,
                 });
                 if (grid.inBounds(pos)) {
+                    try antinodes.put(pos);
+                }
+            }
+        }
+    }
+
+    return antinodes.count();
+}
+
+fn part2(allocator: Allocator, grid: Grid, nodes: NodeSet) !u64 {
+    var antinodes = aoc.AutoHashSet(Pos).init(allocator);
+    defer antinodes.deinit();
+
+    var it = nodes.map.valueIterator();
+    while (it.next()) |positions| {
+        var aa = positions.iterator();
+        while (aa.next()) |a| {
+            var bb = positions.iterator();
+            while (bb.next()) |b| {
+                if (a == b) {
+                    continue;
+                }
+
+                const d = a.distance(b.*).unit();
+                var pos = a.*;
+                while (grid.inBounds(pos)) : (pos = pos.add(d)) {
                     try antinodes.put(pos);
                 }
             }
@@ -112,6 +118,15 @@ const Pos = struct {
 const Delta = struct {
     dr: i32,
     dc: i32,
+
+    fn unit(self: Delta) Delta {
+        const scale = aoc.gcd(self.dr, self.dc);
+
+        return .{
+            .dr = @divExact(self.dr, scale),
+            .dc = @divExact(self.dc, scale),
+        };
+    }
 };
 
 const Grid = struct {
@@ -155,5 +170,38 @@ const Grid = struct {
     fn inBounds(self: Grid, pos: Pos) bool {
         return 0 <= pos.r and pos.r <= self.max.r and
             0 <= pos.c and pos.c <= self.max.c;
+    }
+};
+
+const NodeSet = struct {
+    map: std.AutoHashMap(u8, aoc.AutoHashSet(Pos)),
+
+    fn make(allocator: Allocator, grid: Grid) !NodeSet {
+        var map = std.AutoHashMap(u8, aoc.AutoHashSet(Pos)).init(allocator);
+
+        var it = grid.iterator();
+        while (it.next()) |mapEntry| {
+            const pos = mapEntry.key_ptr.*;
+            const id = mapEntry.value_ptr.*;
+            if (id == '.') {
+                continue;
+            }
+
+            var nodeEntry = try map.getOrPut(id);
+            if (!nodeEntry.found_existing) {
+                nodeEntry.value_ptr.* = aoc.AutoHashSet(Pos).init(allocator);
+            }
+            try nodeEntry.value_ptr.put(pos);
+        }
+
+        return .{ .map = map };
+    }
+
+    fn deinit(self: *NodeSet) void {
+        var it = self.map.valueIterator();
+        while (it.next()) |v| {
+            v.deinit();
+        }
+        self.map.deinit();
     }
 };
