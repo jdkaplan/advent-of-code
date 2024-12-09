@@ -22,13 +22,30 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
-    try stdout.print("{d}\n", .{try part1(allocator, disk)});
+    try stdout.print("{d}\n", .{try part1(disk)});
+    try bw.flush();
+
+    try stdout.print("{d}\n", .{try part2(disk)});
     try bw.flush();
 }
 
-fn part1(_: Allocator, start: Disk) !u64 {
-    var disk = start;
-    while (try disk.defrag_step()) {}
+fn part1(start: Disk) !u64 {
+    var disk = try start.clone();
+    defer disk.deinit();
+
+    while (try disk.defrag_step_split()) {}
+    return disk.checksum();
+}
+
+fn part2(start: Disk) !u64 {
+    var disk = try start.clone();
+    defer disk.deinit();
+
+    var id = disk.max_id;
+    // File 0 can't move anyway, so no need to deal with the integer overflow!
+    while (id > 0) : (id -= 1) {
+        _ = try disk.defrag_step_move(id);
+    }
     return disk.checksum();
 }
 
@@ -54,9 +71,18 @@ const Run = union(enum) {
 
 const Disk = struct {
     runs: ArrayList(Run),
+    max_id: usize,
 
     fn deinit(self: *Disk) void {
         self.runs.deinit();
+    }
+
+    fn clone(self: Disk) !Disk {
+        const runs = try self.runs.clone();
+        return .{
+            .runs = runs,
+            .max_id = self.max_id,
+        };
     }
 
     fn parse(allocator: Allocator, text: []const u8) !Disk {
@@ -80,10 +106,13 @@ const Disk = struct {
             isFile = !isFile;
         }
 
-        return .{ .runs = runs };
+        return .{
+            .runs = runs,
+            .max_id = id - 1,
+        };
     }
 
-    fn defrag_step(self: *Disk) !bool {
+    fn defrag_step_split(self: *Disk) !bool {
         var last: File = undefined;
 
         while (true) {
@@ -121,6 +150,47 @@ const Disk = struct {
         return false;
     }
 
+    fn defrag_step_move(self: *Disk, id: usize) !bool {
+        var file: File = undefined;
+        var pos: usize = undefined;
+
+        for (self.runs.items, 0..) |run, i| {
+            switch (run) {
+                .file => |f| if (f.id == id) {
+                    file = f;
+                    pos = i;
+                    break;
+                },
+                .empty => continue,
+            }
+        }
+
+        for (self.runs.items, 0..) |run, i| {
+            const want = switch (run) {
+                .file => |f| if (f.id == file.id) {
+                    return false;
+                } else {
+                    continue;
+                },
+                .empty => |empty| empty.len,
+            };
+
+            if (file.len == want) {
+                self.runs.items[pos] = Run.empty(file.len);
+                self.runs.items[i] = Run.file(file.id, file.len);
+                return true;
+            }
+            if (file.len < want) {
+                self.runs.items[pos] = Run.empty(file.len);
+                self.runs.items[i] = Run.file(file.id, file.len);
+                try self.runs.insert(i + 1, Run.empty(want - file.len));
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     fn checksum(self: Disk) u64 {
         var sum: u64 = 0;
         var i: usize = 0;
@@ -132,7 +202,9 @@ const Disk = struct {
                     }
                     i += file.len;
                 },
-                .empty => unreachable,
+                .empty => |empty| {
+                    i += empty.len;
+                },
             }
         }
         return sum;
