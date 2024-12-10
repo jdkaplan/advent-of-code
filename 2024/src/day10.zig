@@ -22,11 +22,16 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
-    try stdout.print("{d}\n", .{try part1(allocator, grid)});
+    const part1, const part2 = try findTrails(allocator, grid);
+
+    try stdout.print("{d}\n", .{part1});
+    try bw.flush();
+
+    try stdout.print("{d}\n", .{part2});
     try bw.flush();
 }
 
-fn part1(allocator: Allocator, grid: Grid) !u64 {
+fn findTrails(allocator: Allocator, grid: Grid) !struct { usize, usize } {
     var stack = ArrayList(ArrayList(Pos)).init(allocator);
     defer stack.deinit();
     defer for (stack.items) |*trail| trail.deinit();
@@ -45,6 +50,8 @@ fn part1(allocator: Allocator, grid: Grid) !u64 {
         }
     }
 
+    var total: usize = 0;
+
     var trailheads = std.AutoHashMap(Pos, aoc.AutoHashSet(Pos)).init(allocator);
     defer trailheads.deinit();
     defer {
@@ -58,6 +65,8 @@ fn part1(allocator: Allocator, grid: Grid) !u64 {
         const pos = trail.getLast();
         const height = grid.get(pos).?;
         if (height == '9') {
+            total += 1;
+
             const start = trail.items[0];
             const entry = try trailheads.getOrPut(start);
             if (!entry.found_existing) {
@@ -79,12 +88,12 @@ fn part1(allocator: Allocator, grid: Grid) !u64 {
         }
     }
 
-    var sum: u64 = 0;
+    var uniq: u64 = 0;
     var it = trailheads.valueIterator();
     while (it.next()) |set| {
-        sum += set.count();
+        uniq += set.count();
     }
-    return sum;
+    return .{ uniq, total };
 }
 
 const Pos = struct {
