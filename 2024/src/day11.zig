@@ -24,6 +24,9 @@ pub fn main() !void {
 
     try stdout.print("{d}\n", .{try part1(allocator, stones)});
     try bw.flush();
+
+    try stdout.print("{d}\n", .{try part2(allocator, stones)});
+    try bw.flush();
 }
 
 fn part1(allocator: Allocator, start: Stones) !usize {
@@ -35,6 +38,17 @@ fn part1(allocator: Allocator, start: Stones) !usize {
     }
 
     return stones.list.items.len;
+}
+
+fn part2(allocator: Allocator, stones: Stones) !u64 {
+    var memo = std.AutoHashMap(State, u64).init(allocator);
+    defer memo.deinit();
+
+    var total: u64 = 0;
+    for (stones.list.items) |start| {
+        total += try blinkMemo(&memo, start, 75);
+    }
+    return total;
 }
 
 const Stones = struct {
@@ -89,8 +103,8 @@ const Stones = struct {
             if (i == 0) {
                 try next.append(1);
             } else if (split(i)) |parts| {
-                try next.append(parts.@"0");
-                try next.append(parts.@"1");
+                try next.append(parts[0]);
+                try next.append(parts[1]);
             } else {
                 try next.append(i * 2024);
             }
@@ -100,7 +114,37 @@ const Stones = struct {
     }
 };
 
-fn split(n: u64) ?struct { u64, u64 } {
+const State = struct {
+    start: u64,
+    ticks: usize,
+};
+
+fn blinkMemo(memo: *std.AutoHashMap(State, u64), start: u64, ticks: usize) !u64 {
+    if (ticks == 0) {
+        return 1;
+    }
+
+    const state = State{ .start = start, .ticks = ticks };
+    if (memo.get(state)) |n| {
+        return n;
+    }
+
+    var total: u64 = undefined;
+    if (start == 0) {
+        total = try blinkMemo(memo, 1, ticks - 1);
+    } else if (split(start)) |parts| {
+        const a = try blinkMemo(memo, parts[0], ticks - 1);
+        const b = try blinkMemo(memo, parts[1], ticks - 1);
+        total = a + b;
+    } else {
+        total = try blinkMemo(memo, start * 2024, ticks - 1);
+    }
+
+    try memo.put(state, total);
+    return total;
+}
+
+fn split(n: u64) ?[2]u64 {
     const digits = 1 + std.math.log10(n);
     if (digits % 2 == 0) {
         const x = std.math.pow(u64, 10, digits / 2);
