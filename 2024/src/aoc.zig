@@ -63,6 +63,18 @@ pub fn AutoHashSet(comptime T: type) type {
         pub fn count(self: Self) usize {
             return self.map.count();
         }
+
+        pub fn pop(self: *Self) ?T {
+            var it = self.iterator();
+            const key_ptr = it.next() orelse return null;
+            const key = key_ptr.*;
+            _ = self.map.remove(key);
+            return key;
+        }
+
+        pub fn remove(self: *Self, v: T) bool {
+            return self.map.remove(v);
+        }
     };
 }
 
@@ -103,4 +115,11 @@ test "gcd" {
     try expectEqual(1, gcd(2, 5));
     try expectEqual(1, gcd(-2, 3));
     try expectEqual(2, gcd(-2, -4));
+}
+
+pub fn readAll(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
+    const file = try std.fs.cwd().openFile(path, .{});
+    defer file.close();
+
+    return try file.readToEndAlloc(allocator, comptime 1 << 30);
 }
