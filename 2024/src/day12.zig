@@ -20,11 +20,32 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(std.io.getStdOut().writer());
     const stdout = bw.writer();
 
-    try stdout.print("{d}\n", .{try part1(allocator, grid)});
+    const regions = try garden(allocator, grid);
+    defer regions.deinit();
+    defer for (regions.items) |*region| region.deinit();
+
+    try stdout.print("{d}\n", .{part1(regions.items)});
+    try stdout.print("{d}\n", .{part2(regions.items)});
     try bw.flush();
 }
 
-fn part1(allocator: Allocator, grid: Grid) !u64 {
+fn part1(regions: []Region) u64 {
+    var cost: u64 = 0;
+    for (regions) |region| {
+        cost += region.fencingCost1();
+    }
+    return cost;
+}
+
+fn part2(regions: []Region) u64 {
+    var cost: u64 = 0;
+    for (regions) |region| {
+        cost += region.fencingCost2();
+    }
+    return cost;
+}
+
+fn garden(allocator: Allocator, grid: Grid) !List(Region) {
     var unused = Set(Pos).init(allocator);
     defer unused.deinit();
     {
@@ -38,12 +59,11 @@ fn part1(allocator: Allocator, grid: Grid) !u64 {
         }
     }
 
-    var cost: u64 = 0;
+    var regions = List(Region).init(allocator);
     while (unused.pop()) |root| {
         const label = grid.get(root).?;
 
         var region = Region.init(allocator, label);
-        defer region.deinit();
 
         var queue = List(Pos).init(allocator);
         defer queue.deinit();
@@ -61,10 +81,9 @@ fn part1(allocator: Allocator, grid: Grid) !u64 {
             }
         }
 
-        cost += region.fencingCost();
+        try regions.append(region);
     }
-
-    return cost;
+    return regions;
 }
 
 const Region = struct {
@@ -111,8 +130,69 @@ const Region = struct {
         try self.cells.put(pos);
     }
 
-    fn fencingCost(self: Self) u64 {
+    fn fencingCost1(self: Self) u64 {
         return self.area() * self.perimeter;
+    }
+
+    fn boundingBox(self: Self) ?struct { Pos, Pos } {
+        var it = self.cells.iterator();
+        const first = it.next() orelse return null;
+
+        var lo = first.*;
+        var hi = lo;
+
+        while (it.next()) |pos| {
+            lo = Pos.new(@min(lo.r, pos.r), @min(lo.c, pos.c));
+            hi = Pos.new(@max(hi.r, pos.r), @max(hi.c, pos.c));
+        }
+
+        return .{ lo, hi };
+    }
+
+    fn fencingCost2(self: Self) usize {
+        var sides: usize = 0;
+
+        const lo, const hi = self.boundingBox().?;
+
+        // Walk the grid lines from all four directions, counting the number of
+        // line segments that lie on the edge of the shape (i.e., don't have a
+        // neighbor in the direction we're looking from).
+
+        inline for ([_]Direction{ .n, .s }) |dir| {
+            var r: i32 = lo.r;
+            while (r <= hi.r) : (r += 1) {
+                var c: i32 = lo.c;
+                var wasEdge = false;
+                while (c <= hi.c) : (c += 1) {
+                    const pos = Pos.new(r, c);
+                    const neighbor = pos.add(dir.delta());
+                    const isEdge = self.cells.contains(pos) and !self.cells.contains(neighbor);
+                    if (!wasEdge and isEdge) {
+                        sides += 1;
+                    }
+                    wasEdge = isEdge;
+                }
+            }
+        }
+
+        inline for ([_]Direction{ .w, .e }) |dir| {
+            var c: i32 = lo.c;
+            while (c <= hi.c) : (c += 1) {
+                var r: i32 = lo.r;
+                var wasEdge = false;
+                while (r <= hi.r) : (r += 1) {
+                    const pos = Pos.new(r, c);
+                    const neighbor = pos.add(dir.delta());
+                    const isEdge = self.cells.contains(pos) and !self.cells.contains(neighbor);
+                    if (!wasEdge and isEdge) {
+                        sides += 1;
+                    }
+                    wasEdge = isEdge;
+                }
+            }
+        }
+
+        return self.area() * sides;
     }
 };
 
