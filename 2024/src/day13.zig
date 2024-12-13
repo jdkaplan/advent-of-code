@@ -21,6 +21,7 @@ pub fn main() !void {
     const stdout = bw.writer();
 
     try stdout.print("{d}\n", .{try part1(games.items)});
+    try stdout.print("{d}\n", .{try part2(games.items)});
     try bw.flush();
 }
 
@@ -28,6 +29,17 @@ fn part1(games: []const Game) !i64 {
     var total: i64 = 0;
     for (games) |game| {
         const buttons = game.solve() orelse continue;
+        const cost = 3 * buttons.a + 1 * buttons.b;
+        total += cost;
+    }
+    return total;
+}
+
+fn part2(games: []const Game) !i64 {
+    var total: i64 = 0;
+    for (games) |game| {
+        const modded = game.mod(10000000000000);
+        const buttons = modded.solve() orelse continue;
         const cost = 3 * buttons.a + 1 * buttons.b;
         total += cost;
     }
@@ -159,6 +171,14 @@ const Game = struct {
         return Solution{
             .a = @intCast(nA),
             .b = @intCast(nB),
+        };
+    }
+
+    fn mod(self: Game, delta: i64) Game {
+        return Game{
+            .a = self.a,
+            .b = self.b,
+            .prize = self.prize.add(Move.new(delta, delta)),
         };
     }
 };
