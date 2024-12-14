@@ -14,31 +14,85 @@ pub fn main() !void {
     const text = try aoc.readAll(allocator, "input/day14.txt");
     defer allocator.free(text);
 
+    const floor = Pos{ .x = 101, .y = 103 };
+
     var robots = try aoc.parseAll(Robot, allocator, text, "\n");
     defer robots.deinit();
 
     var bw = std.io.bufferedWriter(std.io.getStdOut().writer());
     const stdout = bw.writer();
 
-    try stdout.print("{d}\n", .{try part1(robots.items)});
+    try stdout.print("{d}\n", .{part1(robots.items, floor)});
+    try bw.flush();
+
+    try stdout.print("{d}\n", .{try part2(allocator, robots.items, floor)});
     try bw.flush();
 }
 
-fn part1(robots: []const Robot) !u64 {
-    var quadrants = [4]u64{ 0, 0, 0, 0 };
-    const floor = Pos{ .x = 101, .y = 103 };
+fn part1(robots: []const Robot, floor: Pos) i64 {
+    return safetyScore(robots, floor, 100);
+}
+
+fn safetyScore(robots: []const Robot, floor: Pos, ticks: i64) i64 {
+    var quadrants = [4]i64{ 0, 0, 0, 0 };
     for (robots) |robot| {
-        const pos = robot.simulate(floor, 100);
+        const pos = robot.simulate(floor, ticks);
         if (pos.quadrant(floor)) |q| {
             quadrants[q] += 1;
         }
     }
 
-    var safety: u64 = 1;
+    var safety: i64 = 1;
     for (quadrants) |n| {
         safety *= n;
     }
     return safety;
+}
+
+fn part2(allocator: Allocator, robots: []const Robot, floor: Pos) !i64 {
+    var best: i64 = std.math.maxInt(i64);
+    var tick: i64 = 0;
+    while (tick < floor.x * floor.y) : (tick += 1) {
+        const safety = safetyScore(robots, floor, tick);
+        if (safety < best) {
+            best = safety;
+
+            var points = Set(Pos).init(allocator);
+            defer points.deinit();
+            for (robots) |robot| {
+                const pos = robot.simulate(floor, tick);
+                try points.put(pos);
+            }
+
+            if (try wasChristmasTree(floor, points)) {
+                return tick;
+            }
+        }
+    }
+    return 0;
+}
+
+fn wasChristmasTree(floor: Pos, points: Set(Pos)) !bool {
+    std.debug.print("\x1B[2J\x1B[H", .{});
+    for (0..@intCast(floor.y + 1)) |y| {
+        for (0..@intCast(floor.x + 1)) |x| {
+            const pos = Pos{
+                .x = @intCast(x),
+                .y = @intCast(y),
+            };
+            if (points.contains(pos)) {
+                std.debug.print("█", .{});
+            } else {
+                std.debug.print(" ", .{});
+            }
+        }
+        std.debug.print("\n", .{});
+    }
+
+    const stdin = std.io.getStdIn();
+    var buf: [32]u8 = undefined;
+    const ans = (try stdin.reader().readUntilDelimiterOrEof(&buf, '\n')) orelse "";
+    return ans.len > 0 and ans[0] == 'y';
 }
 
 const Pos = struct {
