@@ -71,7 +71,7 @@ class Snapshot:
         return cls(bricks)
 
 
-def part1(snap: Snapshot):
+def solve(snap: Snapshot) -> tuple[int, int]:
     supports: dict[int, set[int]] = defaultdict(lambda: set())
     tower: dict[Point, int] = {}
     bricks: dict[int, Brick] = {}
@@ -154,8 +154,25 @@ def part1(snap: Snapshot):
     for v in supports.values():
         if len(v) == 1:
             solos.add(next(iter(v)))
+    part1 = len(snap.bricks) - len(solos)
 
-    return len(snap.bricks) - len(solos)
+    part2 = 0
+    for root in solos:
+        falling = {root}
+
+        changed = True
+        while changed:
+            changed = False
+            for id, support in supports.items():
+                if id in falling:
+                    continue
+                if support <= falling:
+                    falling.add(id)
+                    changed = True
+
+        part2 += len(falling) - 1
+
+    return (part1, part2)
 
 
 def relpath(path: str) -> str:
@@ -167,4 +184,6 @@ with open(relpath(input_path)) as f:
     snap = Snapshot.parse(f.read())
 
 
-print(part1(snap))
+part1, part2 = solve(snap)
+print(part1)
+print(part2)
