@@ -28,7 +28,7 @@ pub fn main() !void {
 }
 
 fn part1(allocator: Allocator, grid: Grid) !u64 {
-    const start, const goal = v: {
+    const pos, const goal = v: {
         var start: Pos = undefined;
         var end: Pos = undefined;
 
@@ -46,93 +46,77 @@ fn part1(allocator: Allocator, grid: Grid) !u64 {
     const State = struct {
         pos: Pos,
         dir: Direction,
-    };
-
-    const Entry = struct {
-        path: List(State),
-        cost: u64,
 
         const Self = @This();
 
-        fn compare(_: void, a: Self, b: Self) std.math.Order {
-            return std.math.order(a.cost, b.cost);
+        pub const Context = struct {
+            allocator: Allocator,
+            grid: Grid,
+            goal: Pos,
+        };
+
+        pub fn isGoal(self: Self, ctx: Context) bool {
+            return std.meta.eql(self.pos, ctx.goal);
+        }
+
+        pub const Neighbor = struct {
+            next: Self,
+            extra: u64,
+        };
+
+        pub fn neighbors(self: Self, ctx: Context) !List(Neighbor) {
+            var list = List(Neighbor).init(ctx.allocator);
+
+            // Move once in the direction we're already going.
+            {
+                const move = self.pos.move(self.dir);
+                if (ctx.grid.get(move) != '#') {
+                    try list.append(Neighbor{
+                        .next = Self{
+                            .pos = move,
+                            .dir = self.dir,
+                        },
+                        .extra = 1,
+                    });
+                }
+            }
+
+            // There's never any reason to turn unless we're going to immediately
+            // move forward. This keeps the search from every trying to spin in a circle.
+            //
+            // As a consequence, there's never *ever* a reason to turn twice in a row
+            // and go back the way we came in.
+            for ([_]Direction{ self.dir.clockwise(), self.dir.counterclockwise() }) |dir| {
+                const move = self.pos.move(dir);
+                if (ctx.grid.get(move) == '#') {
+                    continue;
+                }
+
+                try list.append(Neighbor{
+                    .next = Self{
+                        .pos = move,
+                        .dir = dir,
+                    },
+                    .extra = 1000 + 1,
+                });
+            }
+
+            return list;
         }
     };
 
-    var queue = PriorityQueue(Entry, void, comptime Entry.compare).init(allocator, {});
-    defer queue.deinit();
-    defer while (queue.removeOrNull()) |*entry| entry.path.deinit();
+    const start = State{
+        .pos = pos,
+        .dir = Direction.e,
+    };
 
-    try queue.add(v: {
-        var path = List(State).init(allocator);
-        try path.append(State{
-            .pos = start,
-            .dir = Direction.e,
-        });
-        break :v Entry{
-            .path = path,
-            .cost = 0,
-        };
-    });
+    const ctx = State.Context{
+        .allocator = allocator,
+        .grid = grid,
+        .goal = goal,
+    };
 
-    var expanded = Set(State).init(allocator);
-    defer expanded.deinit();
-
-    while (queue.removeOrNull()) |entry| {
-        const path, const cost = .{ entry.path, entry.cost };
-        defer path.deinit();
-
-        const state = path.getLast();
-
-        if (expanded.contains(state)) {
-            continue;
-        }
-        try expanded.put(state);
-
-        if (std.meta.eql(state.pos, goal)) {
-            return cost;
-        }
-
-        // Move once in the direction we're already going.
-        {
-            const move = state.pos.move(state.dir);
-            if (grid.get(move) != '#') {
-                var next = try path.clone();
-                try next.append(State{
-                    .pos = move,
-                    .dir = state.dir,
-                });
-                try queue.add(Entry{
-                    .path = next,
-                    .cost = cost + 1,
-                });
-            }
-        }
-
-        // There's never any reason to turn unless we're going to immediately
-        // move forward. This keeps the search from every trying to spin in a circle.
-        //
-        // As a consequence, there's never *ever* a reason to turn twice in a row
-        // and go back the way we came in.
-        for ([_]Direction{ state.dir.clockwise(), state.dir.counterclockwise() }) |dir| {
-            const move = state.pos.move(dir);
-            if (grid.get(move) == '#') {
-                continue;
-            }
-
-            var next = try path.clone();
-            try next.append(State{
-                .pos = move,
-                .dir = dir,
-            });
-            try queue.add(Entry{
-                .path = next,
-                .cost = cost + 1000 + 1,
-            });
-        }
-    }
-
-    return 0;
+    return (try aoc.shortestPath(State, allocator, ctx, start)).?;
 }
 
 const Pos = struct {

@@ -123,3 +123,73 @@ pub fn readAll(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
 
     return try file.readToEndAlloc(allocator, comptime 1 << 30);
 }
+
+pub fn shortestPath(
+    comptime State: type,
+    allocator: std.mem.Allocator,
+    ctx: State.Context,
+    start: State,
+) !?u64 {
+    const Entry = struct {
+        state: State,
+        cost: u64,
+
+        const Self = @This();
+
+        fn compare(_: void, a: Self, b: Self) std.math.Order {
+            return std.math.order(a.cost, b.cost);
+        }
+    };
+
+    var queue = std.PriorityQueue(Entry, void, comptime Entry.compare).init(allocator, {});
+    defer queue.deinit();
+
+    try queue.add(Entry{
+        .state = start,
+        .cost = 0,
+    });
+
+    var prev = std.AutoHashMap(State, State).init(allocator);
+    defer prev.deinit();
+
+    var dist = std.AutoHashMap(State, u64).init(allocator);
+    defer dist.deinit();
+
+    try dist.put(start, 0);
+
+    while (queue.removeOrNull()) |entry| {
+        const u, const cost = .{ entry.state, entry.cost };
+        if (dist.get(u)) |best| {
+            if (best < cost) {
+                continue;
+            }
+        }
+
+        if (u.isGoal(ctx)) {
+            return cost;
+        }
+
+        var neighbors: std.ArrayList(State.Neighbor) = try u.neighbors(ctx);
+        defer neighbors.deinit();
+
+        for (neighbors.items) |neighbor| {
+            const v, const extra = .{ neighbor.next, neighbor.extra };
+            const alt = cost + extra;
+
+            if (dist.get(v)) |dv| {
+                if (alt >= dv) {
+                    continue;
+                }
+            }
+
+            try prev.put(v, u);
+            try dist.put(v, alt);
+            try queue.add(Entry{
+                .state = v,
+                .cost = alt,
+            });
+        }
+    }
+
+    return null;
+}
