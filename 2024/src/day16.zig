@@ -23,11 +23,11 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(std.io.getStdOut().writer());
     const stdout = bw.writer();
 
-    try stdout.print("{d}\n", .{try part1(allocator, grid)});
+    try stdout.print("{d} {d}\n", try search(allocator, grid));
     try bw.flush();
 }
 
-fn part1(allocator: Allocator, grid: Grid) !u64 {
+fn search(allocator: Allocator, grid: Grid) !struct { u64, u64 } {
     const pos, const goal = v: {
         var start: Pos = undefined;
         var end: Pos = undefined;
@@ -116,7 +116,39 @@ fn part1(allocator: Allocator, grid: Grid) !u64 {
         .goal = goal,
     };
 
-    return (try aoc.shortestPath(State, allocator, ctx, start)).?;
+    const best, var graph: Map(State, Set(State)) = (try aoc.shortestPath(State, allocator, ctx, start, true)).?;
+    defer graph.deinit();
+    defer {
+        var it = graph.valueIterator();
+        while (it.next()) |set| set.deinit();
+    }
+
+    var onPath = Set(Pos).init(allocator);
+    defer onPath.deinit();
+
+    {
+        var dfs = List(State).init(allocator);
+        defer dfs.deinit();
+
+        inline for ([_]Direction{ .n, .s, .e, .w }) |dir| {
+            try dfs.append(State{
+                .pos = goal,
+                .dir = dir,
+            });
+        }
+
+        while (dfs.popOrNull()) |state| {
+            try onPath.put(state.pos);
+
+            var prevs = graph.get(state) orelse continue;
+            var it = prevs.iterator();
+            while (it.next()) |next| {
+                try dfs.append(next.*);
+            }
+        }
+    }
+
+    return .{ best, onPath.count() };
 }
 
 const Pos = struct {

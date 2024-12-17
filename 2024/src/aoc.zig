@@ -129,7 +129,8 @@ pub fn shortestPath(
     allocator: std.mem.Allocator,
     ctx: State.Context,
     start: State,
-) !?u64 {
+    comptime withGraph: bool,
+) !?(if (withGraph) struct { u64, std.AutoHashMap(State, AutoHashSet(State)) } else u64) {
     const Entry = struct {
         state: State,
         cost: u64,
@@ -149,8 +150,12 @@ pub fn shortestPath(
         .cost = 0,
     });
 
-    var prev = std.AutoHashMap(State, State).init(allocator);
-    defer prev.deinit();
+    var prev = std.AutoHashMap(State, AutoHashSet(State)).init(allocator);
+    defer if (!withGraph) {
+        prev.deinit();
+        var it = prev.valueIterator();
+        while (it.next()) |set| set.deinit();
+    };
 
     var dist = std.AutoHashMap(State, u64).init(allocator);
     defer dist.deinit();
@@ -166,7 +171,11 @@ pub fn shortestPath(
         }
 
         if (u.isGoal(ctx)) {
-            return cost;
+            if (withGraph) {
+                return .{ cost, prev };
+            } else {
+                return cost;
+            }
         }
 
         var neighbors: std.ArrayList(State.Neighbor) = try u.neighbors(ctx);
@@ -177,12 +186,17 @@ pub fn shortestPath(
             const alt = cost + extra;
 
             if (dist.get(v)) |dv| {
-                if (alt >= dv) {
+                if (alt > dv) {
                     continue;
                 }
             }
 
-            try prev.put(v, u);
+            var e = try prev.getOrPut(v);
+            if (!e.found_existing) {
+                e.value_ptr.* = AutoHashSet(State).init(allocator);
+            }
+            try e.value_ptr.put(u);
+
             try dist.put(v, alt);
             try queue.add(Entry{
                 .state = v,
