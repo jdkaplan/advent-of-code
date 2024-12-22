@@ -28,10 +28,11 @@ pub fn main() !void {
     defer out.deinit();
 
     try stdout.print("{s}\n", .{out.items});
+    try stdout.print("{d}\n", .{try quine(allocator, device.program)});
     try bw.flush();
 }
 
-fn joinOutput(allocator: Allocator, nums: []u64) !List(u8) {
+fn joinOutput(allocator: Allocator, nums: []u3) !List(u8) {
     var buf = List(u8).init(allocator);
     var w = buf.writer();
 
@@ -115,14 +116,14 @@ const Device = struct {
         self.program.deinit();
     }
 
-    fn run(self: *Self) !List(u64) {
-        var output = List(u64).init(self.allocator);
+    fn run(self: *Self) !List(u3) {
+        var output = List(u3).init(self.allocator);
         while (self.ip < self.program.items.len) {
             // self.dbg();
             self.ip, const out = self.tick();
 
             if (out) |n| {
-                try output.append(n);
+                try output.append(@intCast(n));
             }
         }
         return output;
@@ -251,4 +252,50 @@ fn takeInt(input: []const u8) ?struct { []const u8, u64 } {
     }
 
     return .{ input[i..], n };
+}
+
+fn quine(allocator: Allocator, program: List(u3)) !u64 {
+    var stack = List(u64).init(allocator);
+    defer stack.deinit();
+
+    // Easier than figuring out reverse iteration lol
+    var possible = Set(u64).init(allocator);
+    defer possible.deinit();
+
+    inline for (0..8) |a| {
+        try stack.append(a);
+    }
+
+    while (stack.popOrNull()) |a| {
+        var device = Device{
+            .a = a,
+            .b = 0,
+            .c = 0,
+            .program = program,
+            .ip = 0,
+            .allocator = allocator,
+        };
+        var out = try device.run();
+        defer out.deinit();
+
+        if (std.mem.endsWith(u3, program.items, out.items)) {
+            if (program.items.len == out.items.len) {
+                try possible.put(a);
+                continue;
+            }
+
+            inline for (0..8) |next| {
+                try stack.append((a << 3) + next);
+            }
+        }
+    }
+
+    var min: u64 = possible.pop().?;
+    while (possible.pop()) |a| {
+        if (a < min) {
+            min = a;
+        }
+    }
+
+    return min;
 }
