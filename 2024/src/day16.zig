@@ -116,7 +116,7 @@ fn search(allocator: Allocator, grid: Grid) !struct { u64, u64 } {
         .goal = goal,
     };
 
-    const best, var graph: Map(State, Set(State)) = (try aoc.shortestPath(State, allocator, ctx, start, true)).?;
+    const best, var graph: Map(State, Set(State)) = (try shortestPath(State, allocator, ctx, start, true)).?;
     defer graph.deinit();
     defer {
         var it = graph.valueIterator();
@@ -317,3 +317,87 @@ const Grid = struct {
         }
     }
 };
+
+pub fn shortestPath(
+    comptime State: type,
+    allocator: std.mem.Allocator,
+    ctx: State.Context,
+    start: State,
+    comptime withGraph: bool,
+) !?(if (withGraph) struct { u64, std.AutoHashMap(State, Set(State)) } else u64) {
+    const Entry = struct {
+        state: State,
+        cost: u64,
+
+        const Self = @This();
+
+        fn compare(_: void, a: Self, b: Self) std.math.Order {
+            return std.math.order(a.cost, b.cost);
+        }
+    };
+
+    var queue = std.PriorityQueue(Entry, void, comptime Entry.compare).init(allocator, {});
+    defer queue.deinit();
+
+    try queue.add(Entry{
+        .state = start,
+        .cost = 0,
+    });
+
+    var prev = std.AutoHashMap(State, Set(State)).init(allocator);
+    defer if (!withGraph) {
+        prev.deinit();
+        var it = prev.valueIterator();
+        while (it.next()) |set| set.deinit();
+    };
+
+    var dist = std.AutoHashMap(State, u64).init(allocator);
+    defer dist.deinit();
+
+    try dist.put(start, 0);
+
+    while (queue.removeOrNull()) |entry| {
+        const u, const cost = .{ entry.state, entry.cost };
+        if (dist.get(u)) |best| {
+            if (best < cost) {
+                continue;
+            }
+        }
+
+        if (u.isGoal(ctx)) {
+            if (withGraph) {
+                return .{ cost, prev };
+            } else {
+                return cost;
+            }
+        }
+
+        var neighbors: std.ArrayList(State.Neighbor) = try u.neighbors(ctx);
+        defer neighbors.deinit();
+
+        for (neighbors.items) |neighbor| {
+            const v, const extra = .{ neighbor.next, neighbor.extra };
+            const alt = cost + extra;
+
+            if (dist.get(v)) |dv| {
+                if (alt > dv) {
+                    continue;
+                }
+            }
+
+            var e = try prev.getOrPut(v);
+            if (!e.found_existing) {
+                e.value_ptr.* = Set(State).init(allocator);
+            }
+            try e.value_ptr.put(u);
+
+            try dist.put(v, alt);
+            try queue.add(Entry{
+                .state = v,
+                .cost = alt,
+            });
+        }
+    }
+
+    return null;
+}
