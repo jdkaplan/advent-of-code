@@ -18,22 +18,23 @@ pub fn main() !void {
     var bytes = try aoc.parseAll(Pos, allocator, text, "\n");
     defer bytes.deinit();
 
-    var grid = try Grid.init(allocator, Pos.new(70, 70));
-    defer grid.deinit();
-
-    for (bytes.items[0..1024]) |pos| {
-        try grid.put(pos, '#');
-    }
-
     var bw = std.io.bufferedWriter(std.io.getStdOut().writer());
     const stdout = bw.writer();
 
-    try stdout.print("{}\n", .{try search(allocator, grid, Pos.new(0, 0), grid.max)});
+    try stdout.print("{}\n", .{try part1(allocator, bytes.items)});
+    try bw.flush();
+
+    try stdout.print("{}\n", .{try part2(allocator, bytes.items)});
     try bw.flush();
 }
 
-fn search(allocator: Allocator, grid: Grid, pos: Pos, _: Pos) !u64 {
-    const start = State.new(pos);
+fn part1(allocator: Allocator, bytes: []Pos) !u64 {
+    var grid = try Grid.init(allocator, Pos.new(70, 70));
+    defer grid.deinit();
+
+    try grid.populate(bytes[0..1024], '#');
+
+    const start = State.new(Pos.new(0, 0));
 
     const ctx = State.Context{
         .grid = grid,
@@ -42,11 +43,40 @@ fn search(allocator: Allocator, grid: Grid, pos: Pos, _: Pos) !u64 {
     var exits = try SearchIterator(State).init(allocator, ctx, start);
     defer exits.deinit();
 
-    while (try exits.next(State.isGoal, State.heuristic)) |next| {
-        return next.cost;
+    const res = try exits.next(State.isGoal, State.heuristic);
+    return res.?.cost;
+}
+
+fn part2(allocator: Allocator, bytes: []Pos) !Pos {
+    const start = State.new(Pos.new(0, 0));
+
+    var lo: usize = 1024;
+    var hi: usize = bytes.len;
+
+    while (hi - lo > 1) {
+        const mid = @divTrunc(hi + lo, 2);
+
+        var grid = try Grid.init(allocator, Pos.new(70, 70));
+        defer grid.deinit();
+
+        try grid.populate(bytes[0..(mid + 1)], '#');
+
+        const ctx = State.Context{
+            .grid = grid,
+        };
+
+        var exits = try SearchIterator(State).init(allocator, ctx, start);
+        defer exits.deinit();
+
+        // Bisect!
+        if (try exits.next(State.isGoal, State.heuristic)) |_| {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
     }
 
-    return 0;
+    return bytes[hi];
 }
 
 const State = struct {
@@ -244,6 +274,12 @@ const Grid = struct {
 
     fn put(self: *Grid, pos: Pos, v: u8) !void {
         try self.map.put(pos, v);
+    }
+
+    fn populate(self: *Grid, positions: []Pos, v: u8) !void {
+        for (positions) |pos| {
+            try self.put(pos, v);
+        }
     }
 
     fn inBounds(self: Grid, pos: Pos) bool {
