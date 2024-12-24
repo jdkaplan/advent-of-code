@@ -88,8 +88,23 @@ pub fn parseAll(
 
     var it = std.mem.tokenizeSequence(u8, text, sep);
     while (it.next()) |s| {
-        const eqn = try T.parse(allocator, s);
-        try all.append(eqn);
+        const v = try T.parse(allocator, s);
+        try all.append(v);
+    }
+
+    return all;
+}
+
+pub fn splitAll(
+    allocator: std.mem.Allocator,
+    text: []const u8,
+    sep: []const u8,
+) !std.ArrayList([]const u8) {
+    var all = std.ArrayList([]const u8).init(allocator);
+
+    var it = std.mem.tokenizeSequence(u8, text, sep);
+    while (it.next()) |s| {
+        try all.append(s);
     }
 
     return all;
