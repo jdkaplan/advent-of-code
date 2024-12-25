@@ -23,6 +23,11 @@ pub fn main() !void {
 
     try stdout.print("{}\n", .{try part1(allocator, edges.items)});
     try bw.flush();
+
+    var password = try part2(allocator, edges.items);
+    defer password.deinit();
+    try stdout.print("{s}\n", .{password.items});
+    try bw.flush();
 }
 
 // I really don't want to have to figure out string hashing again, so turn the
@@ -40,6 +45,13 @@ fn parseName(s: []const u8) Name {
 
 fn nameStartsWith(n: Name, c: u8) bool {
     return n >> 8 == c;
+}
+
+fn formatName(n: Name) [2]u8 {
+    return [2]u8{
+        @intCast(n >> 8),
+        @intCast(n & 0xff),
+    };
 }
 
 const Edge = struct {
@@ -110,6 +122,28 @@ const Graph = struct {
         }
         return null;
     }
+
+    fn popNode(self: *Graph) ?struct { Name, Set(Name) } {
+        const src = self.nodes.pop() orelse return null;
+        return .{ src, self.removeEdgeReferences(src) };
+    }
+
+    fn removeNode(self: *Graph, src: Name) ?Set(Name) {
+        _ = self.nodes.remove(src) or return null;
+        return self.removeEdgeReferences(src);
+    }
+
+    fn removeEdgeReferences(self: *Graph, src: Name) Set(Name) {
+        var entry = self.edges.fetchRemove(src).?;
+        var it = entry.value.iterator();
+        while (it.next()) |dst| {
+            if (self.edges.getPtr(dst.*)) |set| {
+                _ = set.remove(src);
+            }
+        }
+
+        return entry.value;
+    }
 };
 
 fn part1(allocator: Allocator, edges: []const Edge) !usize {
@@ -138,4 +172,85 @@ fn part1(allocator: Allocator, edges: []const Edge) !usize {
     }
 
     return lans.count();
+}
+
+fn part2(allocator: Allocator, edges: []const Edge) !List(u8) {
+    var graph = try Graph.init(allocator, edges);
+    defer graph.deinit();
+
+    var incl = Set(Name).init(allocator);
+    defer incl.deinit();
+
+    var prop = try graph.nodes.clone();
+    defer prop.deinit();
+
+    var excl = Set(Name).init(allocator);
+    defer excl.deinit();
+
+    var lan = Set(Name).init(allocator);
+    try findCliques(graph, incl, prop, excl, &lan);
+    defer lan.deinit();
+
+    return try formatPassword(allocator, lan);
+}
+
+// https://en.wikipedia.org/wiki/Bron%E2%80%93Kerbosch_algorithm
+fn findCliques(graph: Graph, included: Set(Name), proposed: Set(Name), excluded: Set(Name), best: *Set(Name)) !void {
+    if (proposed.empty() and excluded.empty() and included.count() > best.count()) {
+        best.deinit();
+        best.* = try included.clone();
+    }
+
+    var p = try proposed.clone();
+    defer p.deinit();
+
+    var x = try excluded.clone();
+    defer x.deinit();
+
+    var it = proposed.iterator();
+    while (it.next()) |v| {
+        const neighbors = graph.edges.get(v.*).?;
+
+        var incl = try included.with(v.*);
+        defer incl.deinit();
+
+        var prop = try p.intersect(neighbors);
+        defer prop.deinit();
+
+        var excl = try x.intersect(neighbors);
+        defer excl.deinit();
+
+        try findCliques(graph, incl, prop, excl, best);
+
+        _ = p.remove(v.*);
+        try x.put(v.*);
+    }
+}
+
+fn formatPassword(allocator: Allocator, lan: Set(Name)) !List(u8) {
+    var names = List(Name).init(allocator);
+    defer names.deinit();
+    {
+        var it = lan.iterator();
+        while (it.next()) |n| {
+            try names.append(n.*);
+        }
+    }
+
+    std.mem.sort(Name, names.items, {}, comptime std.sort.asc(Name));
+
+    var buf = List(u8).init(allocator);
+    var w = buf.writer();
+
+    if (names.items.len > 0) {
+        try w.print("{s}", .{formatName(names.items[0])});
+    }
+
+    if (names.items.len > 1) {
+        for (names.items[1..]) |n| {
+            try w.print(",{s}", .{formatName(n)});
+        }
+    }
+
+    return buf;
 }

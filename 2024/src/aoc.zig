@@ -48,6 +48,12 @@ pub fn AutoHashSet(comptime T: type) type {
             self.map.deinit();
         }
 
+        pub fn clone(self: Self) !Self {
+            return .{
+                .map = try self.map.clone(),
+            };
+        }
+
         pub fn put(self: *Self, v: T) !void {
             return self.map.put(v, .{});
         }
@@ -66,6 +72,10 @@ pub fn AutoHashSet(comptime T: type) type {
             return self.map.count();
         }
 
+        pub fn empty(self: Self) bool {
+            return self.count() == 0;
+        }
+
         pub fn pop(self: *Self) ?T {
             var it = self.iterator();
             const key_ptr = it.next() orelse return null;
@@ -76,6 +86,38 @@ pub fn AutoHashSet(comptime T: type) type {
 
         pub fn remove(self: *Self, v: T) bool {
             return self.map.remove(v);
+        }
+
+        pub fn of(allocator: std.mem.Allocator, v: T) !Self {
+            var s = Self.init(allocator);
+            try s.put(v);
+            return s;
+        }
+
+        pub fn with(self: Self, v: T) !Self {
+            var n = try self.clone();
+            try n.put(v);
+            return n;
+        }
+
+        pub fn @"union"(self: Self, other: Self) !Self {
+            var u = self.clone();
+            var vs = other.iterator();
+            while (vs.next()) |v| {
+                try u.put(v);
+            }
+            return u;
+        }
+
+        pub fn intersect(self: Self, other: Self) !Self {
+            var ix = try self.clone();
+            var vs = self.iterator();
+            while (vs.next()) |v| {
+                if (!other.contains(v.*)) {
+                    _ = ix.remove(v.*);
+                }
+            }
+            return ix;
         }
     };
 }
