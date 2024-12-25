@@ -23,6 +23,9 @@ pub fn main() !void {
 
     try stdout.print("{}\n", .{try part1(allocator, codes.items)});
     try bw.flush();
+
+    try stdout.print("{}\n", .{try part2(allocator, codes.items)});
+    try bw.flush();
 }
 
 const String = []const u8;
@@ -30,7 +33,7 @@ const String = []const u8;
 fn part1(allocator: Allocator, codes: []String) !u64 {
     var sum: u64 = 0;
     for (codes) |code| {
-        const presses = try solve(allocator, code);
+        const presses = try solve1(allocator, code);
 
         sum += complexity(code, @intCast(presses));
     }
@@ -61,7 +64,7 @@ fn takeInt(input: []const u8) ?struct { []const u8, u64 } {
     return .{ input[i..], n };
 }
 
-fn solve(allocator: Allocator, code: String) !usize {
+fn solve1(allocator: Allocator, code: String) !usize {
     // Step 0: The actual passcode (numpad)
     var digits = List(Numpad).init(allocator);
     defer digits.deinit();
@@ -70,13 +73,13 @@ fn solve(allocator: Allocator, code: String) !usize {
     var total: usize = 0;
     var start = Numpad.a;
     for (digits.items) |next| {
-        total += try digitCost(allocator, start, next);
+        total += try digitCost1(allocator, start, next);
         start = next;
     }
     return total;
 }
 
-fn digitCost(allocator: Allocator, start: Numpad, end: Numpad) !usize {
+fn digitCost1(allocator: Allocator, start: Numpad, end: Numpad) !usize {
     var best: usize = std.math.maxInt(usize);
     const digits = [_]Numpad{end};
 
@@ -109,11 +112,103 @@ fn digitCost(allocator: Allocator, start: Numpad, end: Numpad) !usize {
     return best;
 }
 
+fn part2(allocator: Allocator, codes: []String) !u64 {
+    var sum: u64 = 0;
+    for (codes) |code| {
+        const presses = try solve2(allocator, code);
+
+        sum += complexity(code, @intCast(presses));
+    }
+    return sum;
+}
+
+fn solve2(allocator: Allocator, code: String) !usize {
+    // Step 0: The actual passcode (numpad)
+    var digits = List(Numpad).init(allocator);
+    defer digits.deinit();
+    for (code) |c| try digits.append(Numpad.parse(c));
+
+    var total: usize = 0;
+    var start = Numpad.a;
+    for (digits.items) |next| {
+        total += try digitCost2(allocator, start, next);
+        start = next;
+    }
+    return total;
+}
+
+fn digitCost2(allocator: Allocator, start: Numpad, end: Numpad) !usize {
+    var memo = Map(MemoState, usize).init(allocator);
+    defer memo.deinit();
+
+    // One (1) numpad that a robot is using
+    var nums = try numpadToDpad(allocator, &[_]Numpad{end}, start);
+    defer nums.deinit();
+
+    var best: usize = std.math.maxInt(usize);
+    while (try nums.next()) |path| {
+        defer path.deinit();
+
+        var cost: usize = 0;
+        var prev = Dpad.a;
+        for (path.items) |button| {
+            // Twenty-five (25) dpads that robots are using
+            cost += try costMemo(allocator, prev, button, 25, &memo);
+            prev = button;
+        }
+        best = @min(best, cost);
+    }
+
+    return best;
+}
+
+const MemoState = struct {
+    depth: usize,
+    start: Dpad,
+    button: Dpad,
+};
+
+fn costMemo(allocator: Allocator, start: Dpad, button: Dpad, depth: usize, memo: *Map(MemoState, usize)) !usize {
+    if (depth == 0) {
+        return 1;
+    }
+
+    const state = MemoState{
+        .depth = depth,
+        .start = start,
+        .button = button,
+    };
+
+    if (memo.get(state)) |cost| {
+        return cost;
+    }
+
+    var paths = try dpadToDpad(allocator, &[_]Dpad{button}, start);
+    defer paths.deinit();
+
+    var best: usize = std.math.maxInt(usize);
+    while (try paths.next()) |path| {
+        defer path.deinit();
+
+        var cost: usize = 0;
+        var prev = Dpad.a;
+        for (path.items) |btn| {
+            cost += try costMemo(allocator, prev, btn, depth - 1, memo);
+            prev = btn;
+        }
+
+        best = @min(best, cost);
+    }
+
+    try memo.put(state, best);
+    return best;
+}
+
 fn numpadToDpad(allocator: Allocator, output: []const Numpad, start: Numpad) !ButtonIterator(Numpad, Dpad) {
     return try ButtonIterator(Numpad, Dpad).init(allocator, output, start);
 }
 
-fn dpadToDpad(allocator: Allocator, output: []Dpad, start: Dpad) !ButtonIterator(Dpad, Dpad) {
+fn dpadToDpad(allocator: Allocator, output: []const Dpad, start: Dpad) !ButtonIterator(Dpad, Dpad) {
     return try ButtonIterator(Dpad, Dpad).init(allocator, output, start);
 }
 
