@@ -56,7 +56,9 @@ pub fn AutoHashSet(comptime T: type) type {
             return self.map.contains(v);
         }
 
-        pub fn iterator(self: Self) Map.KeyIterator {
+        pub const Iterator = Map.KeyIterator;
+
+        pub fn iterator(self: Self) Iterator {
             return self.map.keyIterator();
         }
 
