@@ -31,6 +31,17 @@ def part1():
     return distance(walk(steps))
 
 
+def part2():
+    steps = map(Direction.parse, aoc.puzzle_input(11).split(","))
+    pos = (0, 0, 0)
+    far = pos
+    for step in steps:
+        pos = move(pos, step)
+        if distance(pos) > distance(far):
+            far = pos
+    return distance(far)
+
+
 def walk(steps: Iterable[Direction]) -> HexPos:
     pos = (0, 0, 0)
     for step in steps:
@@ -57,3 +68,4 @@ def move(pos: HexPos, dir: Direction) -> HexPos:
 
 
 print(part1())
+print(part2())
