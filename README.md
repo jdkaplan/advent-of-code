@@ -1,4 +1,8 @@
-I like solving the [Advent of Code](https://adventofcode.com/) challenges every year, and these are my solutions. I use this as a way to learn a new language or try new techniques in one I'm already using, so my code isn't likely to be idiomatic or good. I don't expect this to be useful to anyone, but I'm having fun! :D
+I like solving the [Advent of Code](https://adventofcode.com/) challenges every
+year, and these are my solutions. I use this as a way to learn a new language
+or try new techniques in one I'm already using, so my code isn't likely to be
+idiomatic or good. I don't expect this to be useful to anyone, but I'm having
+fun! 😄
 
 - 2015: TODO
 - 2016: TODO
@@ -10,10 +14,11 @@ I like solving the [Advent of Code](https://adventofcode.com/) challenges every 
 - 2022: Rust (Again! v1.65, 2021 edition)
 - 2023: Nim
 - 2024: Zig
+- 2025: Uiua
 
 Languages I'd like to use for the future or TODO years:
+
 - Gleam
 - Haskell
 - Inko
 - Koka
-- Uiua (or other APL-like)
