@@ -13,21 +13,58 @@ ParseRange ← (
 )
 
 Seq       ← + ⊙⇡ ⟜(+1-)
-Log       ← ⌝˜ⁿ
-NumDigits ← +1 ⌊ Log10
-RepeatDigits ← (
-  ⊸(˜ⁿ10 ÷2NumDigits)
-  =⊃(⌊÷|◿)
-)
-ValidId ← (
-  ⊸(◿2 NumDigits)
-  ⨬(¬RepeatDigits|1)
+NumDigits ← ⧻⊥10
+
+Chunks ← (
+  ↯ 1_1
+  ⊙(⊥10)
+  ⧈(⌝⊥10)
 )
 
-⍚ParseRange Input
-≡(
-  ♭Seq°⊂°□
-  ▽¬ ⊸ValidId
-  /+
+Pattern ← (
+  Chunks
+  =1⧻◴
 )
-/+
+
+ValidIdWindow ← (
+  ⊙(⊸NumDigits)
+  ⤚(=0◿)
+  ⨬(1⋅⋅|¬Pattern)
+)
+
+ValidId₁ ← (
+  ⟜(⍤⤙≍ [] △)
+  ⊸NumDigits
+  ⊸(◿2)
+  ⨬(ValidIdWindow÷2|1⋅⋅)
+)
+
+ValidId₂ ← (
+  ⟜(⍤⤙≍ [] △)
+  ⊸(+1 ⇡ ⌊÷2NumDigits)
+  ≡ValidIdWindow
+  ¬˜∊0
+)
+
+Part₁ ← (
+  ⍚(
+    Seq°⊟
+    ▽⊸≡(¬ValidId₁)
+    /+
+  )
+  /◇+
+)
+
+Part₂ ← (
+  ⍚(
+    Seq°⊟
+    ▽⊸≡(¬ValidId₂)
+    /+
+  )
+  /◇+
+)
+
+Ranges ← ⍚ParseRange Input
+
+Part₁ Ranges
+Part₂ Ranges
