@@ -1,1 +1,2 @@
-Lines ← ⊜□ ⊸≠ @\n
+Lines    ← ⊜□ ⊸≠ @\n
+Sections ← ⊜□ ¬⊸⦷ "\n\n"
