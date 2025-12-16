@@ -31,4 +31,16 @@ Part₁ ← (
   ◌
 )
 
+# Count ? Manifold Beam
+Part₂ ← (
+  ∧(
+    + ⊃(
+    | Split ×⊸↧
+    | ⍜▽(×0)
+    )
+  )
+  /+
+)
+
 Part₁ Manifold Beam
+Part₂ Manifold Beam
