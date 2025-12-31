@@ -22,5 +22,61 @@ Lights ← (
   ⬚∞(-1 ⧻⊢)
 )
 
-Machines
-/+ ≡Lights
+Joltages ← (
+  ⊃(°□⊡1|°□⊡2)
+  ⬚0≡◇°⊚
+  ⍉
+)
+
+Vars ← ≡(□ $"x_") ⇡⧻₁
+
+Declarations ← (
+  Vars
+  ≡(&w $"(declare-const _ Int)\n")
+)
+
+Assertions ← (
+  Vars
+  ◡(&w $"(assert (= presses (+ _)))\n" /$"_ _")
+  ≡(&w $"(assert (<= 0 _))\n")
+)
+
+Constraints ← (
+  ⟜Vars
+  ≡⌟(/$"_ _" ≡(□$"(* _ _)"))
+  ≡(&w $"(assert (= (+ _) _))\n")
+)
+
+Presses ← (
+  Joltages
+  ⍜&runs (
+    ⊸&w "(declare-const presses Int)\n"
+    ⊸&w "(assert (<= 0 presses))\n"
+
+    ◡(Declarations⊃(⋅⋅⋅∘|∘))
+    ◡(Assertions⊃(⋅⋅⋅∘|∘))
+    ◡(Constraints⊃(⋅⋅⋅⊙∘|∘))
+
+    ⊸&w "(minimize presses)\n"
+    ⊸&w "(check-sat)\n"
+    ⊸&w "(get-value (presses))\n"
+    &cl
+
+    ⊙(&epf &rs ∞)
+
+    &rs ∞
+  ) {"z3" "-in"}
+  ⊙⋅◌
+
+  Lines
+  °[□⊙□⊙]
+  ⍤⤙≍ "sat"
+
+  ⋕°$"((presses _))"
+)
+
+Part₁ ← /+ ≡Lights
+Part₂ ← /+ ≡Presses
+
+Part₁ Machines
+Part₂ Machines
